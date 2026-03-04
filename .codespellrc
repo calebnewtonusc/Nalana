@@ -1,0 +1,14 @@
+[codespell]
+# Skip generated/binary/data files
+skip = *.pyc,*.json,*.lock,__pycache__,.git,*.yaml,*.yml,venv,node_modules,*.jsonl,*.jsonlines
+# Domain-specific terms and intentional regex stems:
+#   LOD/lod    = Level of Detail (3D graphics)
+#   parm       = Houdini .parm() API method
+#   tread      = stair tread depth (architectural term)
+#   HDA/hda    = Houdini Digital Asset
+#   UE         = Unreal Engine
+#   ALS        = Airborne LiDAR System
+#   ue         = regex pattern fragment (r"\bue[45]\b") in curriculum.py
+#   programm   = intentional regex prefix stem matching "programming/programme"
+#   composit   = intentional regex prefix stem matching "compositing/composite"
+ignore-words-list = lod,parm,tread,hda,ue,als,programm,composit
