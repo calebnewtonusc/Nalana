@@ -134,7 +134,7 @@ if ! step "Blender headless execution validation (6 workers)"; then
 # ── Step 14: Multi-turn + DPO pair generation ────────────────────────────────
 if ! step "Generate multi-turn conversations + DPO preference pairs"; then
     run "python3 synthesis/multi_turn.py --from-pairs --synthetic"
-    run "python3 synthesis/generate_dpo_pairs.py"
+    run "python3 synthesis/generate_dpo_pairs.py --model checkpoints/nalana-sft/final"
     done_step; fi
 
 # ── Step 15: Training data prep ───────────────────────────────────────────────

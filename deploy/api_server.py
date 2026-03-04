@@ -698,9 +698,14 @@ async def stream(ws: WebSocket) -> None:
                         messages, tokenize=False, add_generation_prompt=True
                     )
                 else:
-                    text_input = "\n".join(
-                        f"<|{m['role']}|>\n{m['content']}<|end|>" for m in messages
-                    ) + "\n<|assistant|>\n"
+                    # Qwen2.5 chat format
+                    formatted = "<|im_start|>system\nYou are Nalana, an expert 3D design AI assistant.<|im_end|>\n"
+                    for msg in messages:
+                        role = msg.get("role", "user")
+                        content = msg.get("content", "")
+                        formatted += f"<|im_start|>{role}\n{content}<|im_end|>\n"
+                    formatted += "<|im_start|>assistant\n"
+                    text_input = formatted
 
                 params = SamplingParams(temperature=temperature, max_tokens=max_tokens)
                 t0 = time.perf_counter()

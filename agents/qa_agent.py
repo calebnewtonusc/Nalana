@@ -1194,11 +1194,45 @@ def auto_fix_report(report: QAReport) -> List[str]:
     Execute all auto_fixable fix_commands from a QAReport.
     Returns a list of results (success/error per fix).
     """
+    import bpy
+
     results = []
     fixable = [i for i in report.issues + report.warnings if i.auto_fixable and i.fix_command]
     for issue in fixable:
         try:
-            exec(issue.fix_command)  # noqa: S102
+            obj = bpy.data.objects.get(issue.object_name)
+            if obj is None:
+                results.append(f"SKIP: [{issue.object_name}] object not found")
+                continue
+
+            category = issue.category
+
+            if category == "naming":
+                # Fix trailing/leading whitespace in object name
+                obj.name = obj.name.strip()
+
+            elif category == "transforms":
+                bpy.context.view_layer.objects.active = obj
+                obj.select_set(True)
+                if "scale" in issue.description.lower():
+                    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+                elif "rotation" in issue.description.lower():
+                    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+                elif "origin" in issue.description.lower():
+                    bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="MEDIAN")
+
+            elif category == "uv":
+                bpy.context.view_layer.objects.active = obj
+                obj.select_set(True)
+                bpy.ops.object.editmode_toggle()
+                bpy.ops.mesh.select_all(action="SELECT")
+                bpy.ops.uv.smart_project()
+                bpy.ops.object.editmode_toggle()
+
+            else:
+                results.append(f"SKIP: [{issue.object_name}] no direct fix for category '{category}'")
+                continue
+
             results.append(f"FIXED: [{issue.object_name}] {issue.description[:60]}")
         except Exception as e:
             results.append(f"ERROR fixing [{issue.object_name}]: {e}")

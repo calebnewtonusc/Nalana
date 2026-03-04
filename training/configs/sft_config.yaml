@@ -43,8 +43,9 @@ logging:
   logging_steps: 10
   save_steps: 500
   eval_steps: 500
+  eval_strategy: "steps"
   save_total_limit: 3
-  report_to: "wandb"
+  report_to: []
   run_name: "nalana-sft-v1"
 
 data:

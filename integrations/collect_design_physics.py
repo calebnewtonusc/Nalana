@@ -564,8 +564,9 @@ class TextFetcher:
 
         self._last_request_by_domain[domain] = time.monotonic()
 
+        if self._session is None:
+            raise RuntimeError("HTTP session not initialized. Use async context manager.")
         try:
-            assert self._session is not None
             headers = {
                 "User-Agent": "Mozilla/5.0 (compatible; NalanaDataCollector/1.0; education)",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

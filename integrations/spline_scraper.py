@@ -410,6 +410,8 @@ class SplineScraper:
 
     async def _rate_limited_get(self, url: str, **kwargs) -> aiohttp.ClientResponse | None:
         """GET with rate limiting and error handling."""
+        if self.session is None:
+            raise RuntimeError("HTTP session not initialized. Use 'async with SplineScraper() as s:'")
         now = time.monotonic()
         elapsed = now - self._last_request_time
         if elapsed < self.delay:
@@ -417,7 +419,6 @@ class SplineScraper:
 
         self._last_request_time = time.monotonic()
         try:
-            assert self.session is not None
             resp = await self.session.get(url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=30), **kwargs)
             return resp
         except Exception as e:

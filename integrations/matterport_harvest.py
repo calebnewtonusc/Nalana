@@ -590,7 +590,13 @@ scene.world = world
 world.use_nodes = True
 bg_node = world.node_tree.nodes.get('Background')
 bg_node.inputs['Strength'].default_value = 0.15
-{'bg_node.inputs[chr(39)]Color[chr(39)].default_value = (1.0, 0.95, 0.85, 1.0)  # warm' if style in ('traditional', 'cozy', 'farmhouse') else 'bg_node.inputs[chr(39)]Color[chr(39)].default_value = (0.92, 0.95, 1.0, 1.0)  # cool'}
+"""
+    q = "'"
+    warm_line = f"bg_node.inputs[{q}Color{q}].default_value = (1.0, 0.95, 0.85, 1.0)  # warm"
+    cool_line = f"bg_node.inputs[{q}Color{q}].default_value = (0.92, 0.95, 1.0, 1.0)  # cool"
+    color_line = warm_line if style in ('traditional', 'cozy', 'farmhouse') else cool_line
+    blender_python += color_line + "\n"
+    blender_python += f"""
 
 # Layer 2: Primary fixture ({primary_fixture})
 bpy.ops.object.light_add(type='AREA', location=(0, 0, H - 0.05))

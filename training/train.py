@@ -40,9 +40,8 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     TrainerCallback,
-    TrainingArguments,
 )
-from trl import SFTTrainer
+from trl import SFTConfig, SFTTrainer
 
 
 def load_sharegpt_dataset(jsonl_path: str) -> Dataset:
@@ -163,7 +162,7 @@ def main():
     total_steps = steps_per_epoch * args.epochs
     print(f"GPUs: {n_gpus} | Effective batch: {effective_batch} | Steps: {total_steps:,}")
 
-    training_args = TrainingArguments(
+    training_args = SFTConfig(
         output_dir=args.output_dir,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch_size,
@@ -183,21 +182,21 @@ def main():
         save_steps=max(1, steps_per_epoch // 2),
         save_total_limit=3,
         load_best_model_at_end=bool(val_ds),
-        report_to="none",
+        report_to=[],
         dataloader_num_workers=4,
         remove_unused_columns=False,
         deepspeed=args.deepspeed,
         ddp_find_unused_parameters=False,
+        dataset_text_field="text",
+        max_seq_length=args.max_length,
     )
 
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=val_ds,
-        dataset_text_field="text",
-        max_seq_length=args.max_length,
         callbacks=[PrintMetricsCallback()],
     )
 

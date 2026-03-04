@@ -549,7 +549,7 @@ def main():
     # Model
     parser.add_argument("--model", required=True,
                         help="Path to current Nalana model (RL or DPO checkpoint)")
-    parser.add_argument("--flash-attn", action="store_true", default=True)
+    parser.add_argument("--flash-attn", action="store_true", default=False)
 
     # Data
     parser.add_argument("--sft-data-dir", default="data/train",

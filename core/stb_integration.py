@@ -183,11 +183,7 @@ def _python_to_ops(blender_python: str) -> list:
             pos += 1
         args_str = blender_python[start:pos - 1]  # content between outer parens
         kwargs = _parse_kwargs(args_str)
-        ops.append({"op": op_name, "kwargs": kwargs})
-        op_name = match.group(1)  # e.g. "mesh.primitive_cube_add"
-        args_str = match.group(2)  # e.g. "size=2, location=(0,0,0)"
-        kwargs = _parse_kwargs(args_str)
-        ops.append({"op": op_name, "kwargs": kwargs})
+        ops.append({"op": m.group(1), "kwargs": kwargs})
 
     return ops if ops else []
 

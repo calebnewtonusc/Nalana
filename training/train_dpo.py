@@ -441,9 +441,20 @@ def main():
     if args.flash_attn:
         model_kwargs["attn_implementation"] = "flash_attention_2"
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.base_model, trust_remote_code=True, **model_kwargs
-    )
+    from peft import PeftModel
+    from pathlib import Path as _Path
+
+    sft_adapter_config = _Path(args.base_model) / "adapter_config.json"
+    if sft_adapter_config.exists():
+        import json as _json
+        adapter_cfg = _json.loads(sft_adapter_config.read_text())
+        base_name = adapter_cfg.get("base_model_name_or_path", "Qwen/Qwen2.5-Coder-7B-Instruct")
+        base = AutoModelForCausalLM.from_pretrained(base_name, torch_dtype=torch.bfloat16, device_map=None)
+        model = PeftModel.from_pretrained(base, args.base_model)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.base_model, trust_remote_code=True, **model_kwargs
+        )
     model.enable_input_require_grads()
 
     # LoRA for DPO (conservative — we're adjusting style, not relearning ops)
@@ -558,7 +569,7 @@ def main():
             load_best_model_at_end=True,
             metric_for_best_model="eval_rewards/margins",
             greater_is_better=True,
-            report_to="none",  # We handle W&B via callback
+            report_to=[],  # We handle W&B via callback
             dataloader_num_workers=4,
             remove_unused_columns=False,
             deepspeed=args.deepspeed,
@@ -591,7 +602,7 @@ def main():
             save_steps=args.save_steps,
             save_total_limit=args.save_total_limit,
             load_best_model_at_end=True,
-            report_to="none",
+            report_to=[],
             dataloader_num_workers=4,
             remove_unused_columns=False,
             deepspeed=args.deepspeed,
@@ -604,7 +615,7 @@ def main():
     dpo_trainer_kwargs = dict(
         model=model,
         ref_model=ref_model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         callbacks=callbacks,
@@ -629,6 +640,8 @@ def main():
     # ── Train ─────────────────────────────────────────────────────────────────
     log.info(f"\nStarting DPO training → {output_dir}")
     trainer.train()
+    trainer.save_model(str(Path(args.output_dir) / "dpo_adapter"))
+    tokenizer.save_pretrained(str(Path(args.output_dir) / "dpo_adapter"))
 
     # ── Final execution rate eval ─────────────────────────────────────────────
     if args.eval_execution and args.blender_path:
