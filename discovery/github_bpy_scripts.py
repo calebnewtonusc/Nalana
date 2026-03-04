@@ -211,7 +211,7 @@ def is_valid_bpy_script(content: str) -> bool:
     """Check if a file is a meaningful bpy script worth including in training data."""
     if not BPY_IMPORT_PATTERN.search(content):
         return False
-    lines = [l for l in content.split("\n") if l.strip()]
+    lines = [line for line in content.split("\n") if line.strip()]
     if len(lines) < MIN_SCRIPT_LINES:
         return False
     # Count bpy API calls

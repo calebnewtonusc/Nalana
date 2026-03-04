@@ -81,6 +81,8 @@ def nalana_to_json(
         headers["Authorization"] = f"Bearer {NALANA_API_KEY}"
 
     endpoint = NALANA_API_URL.rstrip("/") + "/v1/command"
+    if not endpoint.startswith(("https://", "http://")):
+        raise ValueError(f"Unsafe URL scheme: {endpoint}")
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
 
@@ -408,6 +410,8 @@ def is_nalana_running() -> bool:
     """Check if the Nalana API server is reachable."""
     try:
         url = NALANA_API_URL.rstrip("/") + "/v1/health"
+        if not url.startswith(("https://", "http://")):
+            raise ValueError(f"Unsafe URL scheme: {url}")
         with urllib.request.urlopen(url, timeout=2) as resp:
             data = json.loads(resp.read())
             return data.get("status") == "ok"
@@ -419,6 +423,8 @@ def nalana_model_info() -> dict:
     """Return info about the loaded Nalana model."""
     try:
         url = NALANA_API_URL.rstrip("/") + "/v1/health"
+        if not url.startswith(("https://", "http://")):
+            raise ValueError(f"Unsafe URL scheme: {url}")
         with urllib.request.urlopen(url, timeout=5) as resp:
             return json.loads(resp.read())
     except Exception as e:

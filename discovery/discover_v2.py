@@ -499,7 +499,11 @@ def search_videos(query: str, api_key: str, max_pages: int = 2) -> list[str]:
 def load_existing_ids() -> set[str]:
     if not VIDEO_IDS_FILE.exists():
         return set()
-    return set(l.strip() for l in VIDEO_IDS_FILE.read_text().splitlines() if l.strip())
+    return set(
+        line.strip()
+        for line in VIDEO_IDS_FILE.read_text().splitlines()
+        if line.strip()
+    )
 
 
 def save_ids(new_ids: list[str]) -> int:

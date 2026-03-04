@@ -121,7 +121,7 @@ def fetch_and_save(url: str, force: bool = False) -> Path | None:
 
 def load_urls(path: str) -> list[str]:
     lines = Path(path).read_text().splitlines()
-    return [l.strip() for l in lines if l.strip() and not l.startswith("#")]
+    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
 
 
 def main():

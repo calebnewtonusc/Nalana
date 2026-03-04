@@ -218,7 +218,7 @@ def make_dedup_key(pair: dict) -> str:
     # Normalize: remove articles, extra spaces
     vc_norm = re.sub(r"\b(a|an|the|this|that|some)\b", "", vc).strip()
     vc_norm = re.sub(r"\s+", " ", vc_norm)
-    return hashlib.md5(f"{vc_norm}|{op}".encode()).hexdigest()
+    return hashlib.md5(f"{vc_norm}|{op}".encode(), usedforsecurity=False).hexdigest()
 
 
 def load_all_pairs() -> list[dict]:

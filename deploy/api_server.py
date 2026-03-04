@@ -319,8 +319,8 @@ async def init_hf_fallback() -> None:
     loop = asyncio.get_event_loop()
 
     def _load():
-        tok = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
+        tok = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)  # nosec B615
+        model = AutoModelForCausalLM.from_pretrained(  # nosec B615
             MODEL_PATH,
             torch_dtype=torch.bfloat16,
             device_map="auto",

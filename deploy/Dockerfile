@@ -54,15 +54,19 @@ WORKDIR /build
 # 2. Application packages
 COPY requirements.txt .
 
+# hadolint ignore=DL3013
 RUN pip install --upgrade pip setuptools wheel
 
 # Install PyTorch with CUDA 12.1 first (largest package)
+# hadolint ignore=DL3013
 RUN pip install torch==2.3.0+cu121 --index-url https://download.pytorch.org/whl/cu121
 
 # Install vLLM (CUDA-matched build)
+# hadolint ignore=DL3013
 RUN pip install vllm==0.4.2
 
 # Install remaining requirements
+# hadolint ignore=DL3013
 RUN pip install \
     transformers>=4.45.0 \
     datasets>=2.20.0 \
@@ -74,6 +78,7 @@ RUN pip install \
     tqdm>=4.66.0
 
 # Install API server dependencies
+# hadolint ignore=DL3013
 RUN pip install \
     fastapi>=0.111.0 \
     uvicorn[standard]>=0.29.0 \

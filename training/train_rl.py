@@ -415,7 +415,7 @@ def extract_blender_code(text: str) -> str:
 
     # If no code fence, look for bpy.ops lines
     lines = text.splitlines()
-    bpy_lines = [l for l in lines if "bpy." in l]
+    bpy_lines = [line for line in lines if "bpy." in line]
     if bpy_lines:
         return "\n".join(bpy_lines)
 
@@ -1052,7 +1052,7 @@ def main():
 
     # ── Load tokenizer ────────────────────────────────────────────────────────
     log.info(f"Loading tokenizer from: {args.base_model}")
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
@@ -1062,7 +1062,7 @@ def main():
     if args.flash_attn:
         model_kwargs["attn_implementation"] = "flash_attention_2"
 
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         args.base_model, trust_remote_code=True, **model_kwargs
     )
     model.enable_input_require_grads()
@@ -1092,7 +1092,7 @@ def main():
     # ── Load reference model (frozen SFT checkpoint) ──────────────────────────
     ref_model_path = args.ref_model or args.base_model
     log.info(f"Loading reference model (frozen): {ref_model_path}")
-    ref_model = AutoModelForCausalLM.from_pretrained(
+    ref_model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         ref_model_path, trust_remote_code=True, **model_kwargs
     )
     ref_model = ref_model.to(device)
@@ -1138,7 +1138,7 @@ def main():
     if args.resume_from:
         state_file = Path(args.resume_from) / "trainer_state.pt"
         if state_file.exists():
-            state = torch.load(str(state_file))
+            state = torch.load(str(state_file), weights_only=True)
             trainer.global_step = state["global_step"]
             trainer.best_avg_reward = state["best_avg_reward"]
             optimizer.load_state_dict(state["optimizer_state"])

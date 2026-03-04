@@ -65,7 +65,13 @@ start_server() {
     local model="$3"
     local port="$4"
     local tp_size="$5"        # tensor parallel size
-    local extra_args="${6:-}"
+    local extra_args_str="${6:-}"
+
+    # Convert extra args string to array for safe word-splitting
+    local extra_args=()
+    if [ -n "$extra_args_str" ]; then
+        read -r -a extra_args <<< "$extra_args_str"
+    fi
 
     local log_file="$LOG_DIR/vllm_${port}.log"
 
@@ -84,7 +90,7 @@ start_server() {
         --gpu-memory-utilization 0.92 \
         --trust-remote-code \
         --disable-log-requests \
-        $extra_args \
+        "${extra_args[@]}" \
         > "$log_file" 2>&1 &
 
     echo $! > "$LOG_DIR/vllm_${port}.pid"

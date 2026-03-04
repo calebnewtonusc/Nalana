@@ -56,14 +56,18 @@ def load_video_ids(limit: int | None = None) -> list[str]:
             ids = re.findall(r"(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})", content)
             return ids[:limit] if limit else ids
         return []
-    ids = [l.strip() for l in IDS_FILE.read_text().splitlines() if l.strip()]
+    ids = [line.strip() for line in IDS_FILE.read_text().splitlines() if line.strip()]
     return ids[:limit] if limit else ids
 
 
 def load_skip_ids() -> set[str]:
     if not SKIP_FILE.exists():
         return set()
-    return set(l.strip() for l in SKIP_FILE.read_text().splitlines() if l.strip())
+    return set(
+        line.strip()
+        for line in SKIP_FILE.read_text().splitlines()
+        if line.strip()
+    )
 
 
 def mark_skip(video_id: str):

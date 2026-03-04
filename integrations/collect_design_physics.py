@@ -501,7 +501,8 @@ def chunk_text(
 
         chunk = {
             "chunk_id": hashlib.md5(
-                f"{source_name}_{chunk_idx}_{chunk_text_content[:50]}".encode()
+                f"{source_name}_{chunk_idx}_{chunk_text_content[:50]}".encode(),
+                usedforsecurity=False,
             ).hexdigest()[:12],
             "source": source_name,
             "source_url": url,
@@ -545,7 +546,7 @@ class TextFetcher:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _cache_key(self, url: str) -> str:
-        return hashlib.md5(url.encode()).hexdigest()
+        return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
 
     def _cache_path(self, url: str) -> Path:
         return self._cache_dir / f"{self._cache_key(url)}.txt"

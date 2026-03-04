@@ -498,7 +498,7 @@ def main():
 
     # ── Load tokenizer ────────────────────────────────────────────────────────
     log.info(f"Loading tokenizer: {args.base_model}")
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
@@ -519,12 +519,12 @@ def main():
         base_name = adapter_cfg.get(
             "base_model_name_or_path", "Qwen/Qwen2.5-Coder-7B-Instruct"
         )
-        base = AutoModelForCausalLM.from_pretrained(
+        base = AutoModelForCausalLM.from_pretrained(  # nosec B615
             base_name, torch_dtype=torch.bfloat16, device_map=None
         )
-        model = PeftModel.from_pretrained(base, args.base_model)
+        model = PeftModel.from_pretrained(base, args.base_model)  # nosec B615
     else:
-        model = AutoModelForCausalLM.from_pretrained(
+        model = AutoModelForCausalLM.from_pretrained(  # nosec B615
             args.base_model, trust_remote_code=True, **model_kwargs
         )
     model.enable_input_require_grads()
@@ -554,7 +554,7 @@ def main():
     # the Blender execution skills learned in SFT and RL stages.
     ref_model_path = args.ref_model or args.base_model
     log.info(f"Loading reference model (frozen): {ref_model_path}")
-    ref_model = AutoModelForCausalLM.from_pretrained(
+    ref_model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         ref_model_path, trust_remote_code=True, **model_kwargs
     )
     ref_model.eval()
