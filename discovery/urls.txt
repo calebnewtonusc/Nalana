@@ -1,0 +1,59 @@
+# Nalana Training Dataset - Blender Tutorial URLs
+# One URL per line. Lines starting with # are ignored.
+# Focus: tutorials that teach concrete Blender operations with clear narration.
+
+# === Blender Guru ===
+# Donut Tutorial (Part 1 - Interface & Modeling basics)
+https://www.youtube.com/watch?v=nIoXOplUvAw
+# Donut Tutorial (Part 2 - Modeling)
+https://www.youtube.com/watch?v=tBpnKTAc5Eo
+# Donut Tutorial (Part 3 - Sculpting)
+https://www.youtube.com/watch?v=jnj2BL4chaQ
+# Donut Tutorial (Part 4 - Shading)
+https://www.youtube.com/watch?v=YKGISyntologic
+# Anvil Tutorial (Hard surface modeling)
+https://www.youtube.com/watch?v=CmrAv8TSAao
+# Rendering Guide
+https://www.youtube.com/watch?v=eKL6TZCv5_8
+
+# === Grant Abbitt ===
+# Complete Beginner Guide (2024)
+https://www.youtube.com/watch?v=jnj2BL4chaQ
+# Low poly character modeling
+https://www.youtube.com/watch?v=VJSch6luJQ4
+# Hard surface modeling fundamentals
+https://www.youtube.com/watch?v=YGr3Q-KRWOM
+# Rigging for beginners
+https://www.youtube.com/watch?v=9dZjcFW3BRY
+
+# === CG Fast Track ===
+# Modeling a simple chair
+https://www.youtube.com/watch?v=Hf2esGA7vCc
+
+# === Ducky 3D ===
+# Abstract geometry nodes tutorial
+https://www.youtube.com/watch?v=L5Za_kYfxbc
+
+# === Default Cube ===
+# Geometry nodes for beginners
+https://www.youtube.com/watch?v=52UYqe3zdxM
+
+# === CGMatter ===
+# 50 Blender tips in one video (dense operation coverage)
+https://www.youtube.com/watch?v=v1JGNSi45cs
+
+# === Josh Gambrell / Ponte Ryuurui ===
+# Hard Surface Modeling (boolean workflow)
+https://www.youtube.com/watch?v=wuKdqHJfqts
+
+# === Blender fundamentals (official) ===
+# Modeling fundamentals
+https://www.youtube.com/watch?v=MF1qEhBSfq4
+# Modifiers
+https://www.youtube.com/watch?v=eoHjqy3T1YE
+# Shading/Materials
+https://www.youtube.com/watch?v=5TieyAcEv6w
+# Sculpting
+https://www.youtube.com/watch?v=Cmi0KoFtc-4
+# Rigging
+https://www.youtube.com/watch?v=XkiWBSSuxLw

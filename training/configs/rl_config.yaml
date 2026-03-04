@@ -1,0 +1,57 @@
+# Stage 2: Execution-reward RL config for Nalana (GRPO + headless Blender)
+# Run: deepspeed --num_gpus=16 training/train_rl.py --deepspeed training/ds_config_rl.json
+# Or:  python training/train_rl.py --base-model checkpoints/nalana-sft/final --num-samples 4
+
+model:
+  base_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+  # Path to SFT checkpoint (ref model, frozen)
+  ref_model: "./checkpoints/nalana-sft/final"
+  output_dir: "./checkpoints/nalana-rl"
+  torch_dtype: "bfloat16"
+
+lora:
+  r: 32
+  # Smaller rank than SFT — RL updates should be conservative
+  lora_alpha: 64
+  lora_dropout: 0.0
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+grpo:
+  learning_rate: 5.0e-6
+  max_steps: 2000
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 8
+  num_samples: 4          # N candidate responses per prompt
+  max_new_tokens: 512
+  temperature: 0.8
+  top_p: 0.95
+  kl_coeff: 0.02          # KL divergence penalty vs reference model
+  warmup_steps: 100
+
+reward:
+  # Reward function: headless Blender execution
+  # 1.0 = code ran + scene changed (successful modification)
+  # 0.5 = code ran but no scene change (maybe a query/print)
+  # 0.0 = runtime error
+  blender_path: "${BLENDER_PATH:/usr/bin/blender}"
+  blender_timeout: 30     # seconds per execution
+  blender_workers: 4      # parallel Blender subprocess workers
+
+logging:
+  log_steps: 10
+  save_steps: 100
+  save_total_limit: 5
+  wandb_project: "nalana-rl"
+  run_name: "nalana-grpo-v1"
+
+data:
+  data_dir: "./data/train"
+  num_prompts: 50000      # RL prompts sampled from SFT dataset

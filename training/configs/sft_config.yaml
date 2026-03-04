@@ -1,0 +1,53 @@
+# Stage 1: Supervised Fine-Tuning config for Nalana
+# Run: deepspeed --num_gpus=18 training/train.py --deepspeed training/configs/deepspeed_zero3.json
+# Or:  torchrun --nproc_per_node=8 training/train.py --data-dir data/train --output-dir checkpoints/nalana-sft
+
+model:
+  base_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+  output_dir: "./checkpoints/nalana-sft"
+  max_seq_length: 4096
+  torch_dtype: "bfloat16"
+  trust_remote_code: true
+  flash_attn: true
+
+lora:
+  r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+training:
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  packing: false
+  dataset_text_field: "text"
+
+logging:
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 500
+  save_total_limit: 3
+  report_to: "wandb"
+  run_name: "nalana-sft-v1"
+
+data:
+  data_dir: "./data/train"
+  train_file: "sharegpt_train.jsonl"
+  val_file: "sharegpt_val.jsonl"

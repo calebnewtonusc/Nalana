@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Nalana vLLM Serving Configuration
+#
+# Use with:
+#   vllm serve --config deploy/serve_config.yaml
+#
+# Or programmatically (from api_server.py):
+#   engine_args = AsyncEngineArgs.from_config("deploy/serve_config.yaml")
+#
+# Hardware target: 4x NVIDIA A100 80GB (NVLink)
+#   - tensor_parallel_size: 4  (model sharded across all 4 GPUs)
+#   - max_model_len: 8192      (fits comfortably in 4x80GB)
+#   - dtype: bfloat16          (A100 native; faster than float16, no perf loss)
+#   - No quantization needed   (A100 has plenty of VRAM)
+#
+# For smaller deployments:
+#   - 2x A100: tensor_parallel_size=2, gpu_memory_utilization=0.92
+#   - 1x A100: tensor_parallel_size=1, gpu_memory_utilization=0.95
+#   - 2x A6000 (48GB): tensor_parallel_size=2, dtype=bfloat16
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Model ───────────────────────────────────────────────────────────────────
+model: /model
+# Tokenizer is loaded from same directory by default.
+# Override if tokenizer is at a different path:
+# tokenizer: /model/tokenizer
+
+# ─── Parallelism ──────────────────────────────────────────────────────────────
+tensor_parallel_size: 4
+# pipeline_parallel_size: 1  # Use 1 unless running >2 nodes
+
+# ─── Precision ────────────────────────────────────────────────────────────────
+dtype: bfloat16
+# A100/H100: use bfloat16 (native hardware support, no loss of quality)
+# V100/older: use float16 instead
+
+# No quantization — A100 has 80GB VRAM per card, no need to compress weights.
+# For smaller GPUs (e.g., A6000 48GB or RTX 3090), use:
+#   quantization: awq  (requires pre-quantized model)
+# or:
+#   quantization: gptq
+
+# ─── Context length ───────────────────────────────────────────────────────────
+max_model_len: 8192
+# 8192 tokens covers:
+#   - System prompt (~300 tokens)
+#   - Up to 10 turns of multi-turn history (~4000 tokens)
+#   - User command + scene context (~500 tokens)
+#   - Model response (~2000 tokens)
+#
+# For longer build plans (40+ steps), increase to 16384
+# (requires more VRAM — test on your hardware first)
+
+# ─── Batching ─────────────────────────────────────────────────────────────────
+max_num_seqs: 256
+# Max simultaneous requests in the batch.
+# At 8192 max_model_len, 256 seqs uses ~320GB KV cache across 4xA100s (fine).
+# Reduce if you see OOM errors on smaller GPUs.
+
+max_num_batched_tokens: 32768
+# Total tokens per forward pass. 32768 = 4 * 8192.
+
+# ─── KV Cache ─────────────────────────────────────────────────────────────────
+gpu_memory_utilization: 0.90
+# Reserve 10% for CUDA overhead, activation buffers, and safety margin.
+# A100 80GB: 0.90 → ~72GB usable per card.
+# Increase to 0.93 if model fits and you have headroom.
+
+# ─── Performance optimizations ────────────────────────────────────────────────
+enforce_eager: false
+# False = use CUDA graph captures for higher throughput.
+# Set True only for debugging / when CUDA graphs cause errors.
+
+disable_log_requests: true
+# Suppress vLLM's per-request logging (our api_server.py handles logging).
+
+# ─── Serving ──────────────────────────────────────────────────────────────────
+host: "0.0.0.0"
+port: 8000
+
+# Disable vLLM's built-in OpenAI-compatible REST API (we use FastAPI instead)
+# Set to true if you want to use vllm serve standalone without api_server.py:
+# served_model_name: "nalana-v1"
+# api_key: ""  # Set to require API key authentication
+
+# ─── Sampling defaults (can be overridden per-request) ────────────────────────
+# These are NOT set here — defaults are handled by SamplingParams in api_server.py
+
+# ─── Trust remote code ────────────────────────────────────────────────────────
+trust_remote_code: true
+# Required for Qwen2.5 and other models with custom architecture code.
+
+# ─── Swap space (for preemption) ──────────────────────────────────────────────
+swap_space: 4
+# GB of CPU RAM for swapping preempted sequences.
+# Prevents OOM errors under burst load at cost of some latency.
+
+# ─── Seed ─────────────────────────────────────────────────────────────────────
+seed: 42
+# Deterministic sampling at temperature=0 (greedy decode).
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+uvicorn_log_level: "warning"
+# vLLM's uvicorn log level. Our FastAPI server handles structured logging.

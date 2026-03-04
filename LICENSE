@@ -1,0 +1,49 @@
+MIT License
+
+Copyright (c) 2026 Caleb Newton
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Additional Licenses
+
+### Nalana Model Weights
+The trained model weights (stored separately at HuggingFace Hub) are released
+under the Apache License, Version 2.0. See https://www.apache.org/licenses/LICENSE-2.0
+
+### NalanaBench Dataset
+The NalanaBench evaluation dataset (500 curated prompts) is released under the
+Creative Commons Attribution 4.0 International License (CC BY 4.0).
+See https://creativecommons.org/licenses/by/4.0/
+
+### Base Model
+Nalana is fine-tuned from Qwen2.5-Coder-7B-Instruct, which is licensed under the
+Tongyi Qianwen License v1.0. Commercial use is permitted with attribution.
+See https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct/blob/main/LICENSE
+
+### Third-Party Training Data Sources
+- YouTube tutorial transcripts are processed via the YouTube Transcript API under
+  YouTube's Terms of Service. Synthesis outputs (not raw transcripts) are included
+  in the training dataset as transformative AI research use.
+- Objaverse data is released under Creative Commons licenses (CC-BY 4.0 / CC-BY-NC 4.0).
+  See https://objaverse.allenai.org/
+- Polyhaven assets are CC0. See https://polyhaven.com/license
+- All other third-party assets used under their respective licenses. See
+  data/LICENSE_SOURCES.md for a complete attribution list.

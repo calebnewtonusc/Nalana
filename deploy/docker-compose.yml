@@ -1,0 +1,258 @@
+version: "3.9"
+
+# ─── Nalana Production Stack ──────────────────────────────────────────────────
+#
+# Services:
+#   nalana-api   FastAPI + vLLM inference (GPU-backed)
+#   nginx        Reverse proxy + SSL + WebSocket upgrade
+#   redis        Session state for multi-turn conversations
+#   prometheus   Metrics collection
+#   grafana      Observability dashboard
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.yml up -d
+#   docker compose -f deploy/docker-compose.yml logs -f nalana-api
+#   docker compose -f deploy/docker-compose.yml down
+#
+# GPU allocation (override via NALANA_TP_SIZE env var):
+#   Default: 4 GPUs (tensor parallel across 4 A100s)
+#   Change DEVICE_IDS below to target specific GPU indices.
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  nalana-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  model-cache:   # Shared volume for model checkpoint
+  ssl-certs:     # Certbot/Let's Encrypt certificates
+
+services:
+
+  # ─── Nalana FastAPI + vLLM ─────────────────────────────────────────────────
+  nalana-api:
+    build:
+      context:    ..           # Project root (nalana-dataset/)
+      dockerfile: deploy/Dockerfile
+    image: nalana-api:latest
+    container_name: nalana-api
+    restart: unless-stopped
+
+    # GPU access — expose all 4 A100s (adjust count as needed)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver:       nvidia
+              count:        4         # Use 4 GPUs; override with NALANA_GPU_COUNT
+              capabilities: [gpu]
+
+    environment:
+      # Model
+      NALANA_MODEL_PATH:    "${NALANA_MODEL_PATH:-/model}"
+      NALANA_TP_SIZE:       "${NALANA_TP_SIZE:-4}"
+      NALANA_MAX_MODEL_LEN: "${NALANA_MAX_MODEL_LEN:-8192}"
+
+      # Auth & rate limiting
+      NALANA_API_KEYS:      "${NALANA_API_KEYS:-}"
+      NALANA_RATE_LIMIT_RPM: "${NALANA_RATE_LIMIT_RPM:-60}"
+
+      # Infrastructure
+      REDIS_URL:            "redis://redis:6379"
+      LOG_LEVEL:            "${LOG_LEVEL:-INFO}"
+
+      # CUDA
+      NVIDIA_VISIBLE_DEVICES: "${DEVICE_IDS:-all}"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+    volumes:
+      # Mount model checkpoint from host (path relative to project root)
+      - "${HOST_MODEL_PATH:-../checkpoints}:/model:ro"
+      # Cache HuggingFace downloads (avoids re-download on restart)
+      - model-cache:/root/.cache/huggingface
+
+    ports:
+      - "8000:8000"       # Direct API access (bypasses nginx, for internal/dev use)
+
+    networks:
+      - nalana-net
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  5
+      start_period: 120s    # vLLM takes ~2 min to load model on first start
+
+    command: >
+      uvicorn deploy.api_server:app
+        --host 0.0.0.0
+        --port 8000
+        --workers 1
+        --loop uvloop
+        --log-level warning
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+
+  # ─── Nginx reverse proxy ────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nalana-nginx
+    restart: unless-stopped
+
+    # NALANA_DOMAIN is substituted into nginx.conf at startup via envsubst
+    environment:
+      NALANA_DOMAIN: "${NALANA_DOMAIN:-nalana.example.com}"
+
+    # envsubst replaces ${NALANA_DOMAIN} in the template, then starts nginx
+    command: >
+      /bin/sh -c "envsubst '$$NALANA_DOMAIN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+      && nginx -g 'daemon off;'"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro   # Template — envsubst fills domain
+      - ssl-certs:/etc/letsencrypt:ro                    # Certbot auto-renewed certs
+      - ./ssl/dhparam.pem:/etc/ssl/dhparam.pem:ro
+
+    networks:
+      - nalana-net
+
+    depends_on:
+      nalana-api:
+        condition: service_healthy
+
+    healthcheck:
+      test:     ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+
+  # ─── Redis session store ────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: nalana-redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+        --maxmemory 2gb
+        --maxmemory-policy allkeys-lru
+        --save 900 1
+        --save 300 10
+        --appendonly yes
+        --appendfsync everysec
+
+    volumes:
+      - redis-data:/data
+
+    networks:
+      - nalana-net
+
+    ports:
+      - "127.0.0.1:6379:6379"    # Bind to localhost only (not exposed publicly)
+
+    healthcheck:
+      test:     ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+
+  # ─── Prometheus metrics ─────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: nalana-prometheus
+    restart: unless-stopped
+
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+
+    ports:
+      - "127.0.0.1:9090:9090"    # Internal only
+
+    networks:
+      - nalana-net
+
+    healthcheck:
+      test:     ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+
+
+  # ─── Grafana dashboard ──────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: nalana-grafana
+    restart: unless-stopped
+
+    environment:
+      GF_SECURITY_ADMIN_USER:     "${GRAFANA_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-nalana_admin}"
+      GF_AUTH_ANONYMOUS_ENABLED:  "false"
+      GF_SERVER_ROOT_URL:         "https://${NALANA_DOMAIN:-localhost}/grafana"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+    ports:
+      - "127.0.0.1:3000:3000"    # Internal only — exposed via nginx /grafana proxy
+
+    networks:
+      - nalana-net
+
+    depends_on:
+      - prometheus
+
+    healthcheck:
+      test:     ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"

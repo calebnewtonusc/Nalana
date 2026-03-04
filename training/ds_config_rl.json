@@ -1,0 +1,42 @@
+{
+  "_comment": "DeepSpeed ZeRO-2 config for RL/DPO training (Stages 2 and 3).",
+  "_note_zero2_vs_zero3": "ZeRO-2 instead of ZeRO-3 for RL because: ZeRO-3 partitions model weights across GPUs, requiring a gather before every forward pass. During RL, we do frequent generation (which needs the full model assembled) followed by backward passes. The gather overhead under ZeRO-3 makes RL ~2-3x slower than ZeRO-2. ZeRO-2 only partitions gradients and optimizer states, so forward passes are unaffected.",
+
+  "zero_optimization": {
+    "stage": 2,
+    "allgather_partitions": true,
+    "allgather_bucket_size": 5e8,
+    "overlap_comm": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 5e8,
+    "contiguous_gradients": true,
+    "round_robin_gradients": true
+  },
+
+  "bf16": {
+    "enabled": true
+  },
+
+  "gradient_clipping": 1.0,
+
+  "train_micro_batch_size_per_gpu": 2,
+  "gradient_accumulation_steps": 8,
+
+  "steps_per_print": 10,
+  "wall_clock_breakdown": false,
+
+  "comms_logger": {
+    "enabled": false
+  },
+
+  "activation_checkpointing": {
+    "partition_activations": false,
+    "cpu_checkpointing": false,
+    "contiguous_memory_optimization": false,
+    "number_checkpoints": null,
+    "synchronize_checkpoint_boundary": false,
+    "profile": false
+  },
+
+  "_note_no_cpu_offload": "CPU offloading is disabled here (unlike some ZeRO-3 configs). For RL, we need fast iteration between generation and gradient updates. CPU offload adds PCIe transfer overhead that kills RL throughput. With 18x A6000 (864GB total VRAM), there's enough VRAM to hold everything on GPU."
+}
