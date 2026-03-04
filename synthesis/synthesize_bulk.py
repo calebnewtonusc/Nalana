@@ -45,34 +45,40 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
 
-from synthesis.prompts import TUTORIAL_SYSTEM_PROMPT, CROSS_SOFTWARE_SYSTEM_PROMPT, PHYSICS_REASONING_SYSTEM_PROMPT
+from synthesis.prompts import (
+    TUTORIAL_SYSTEM_PROMPT,
+    CROSS_SOFTWARE_SYSTEM_PROMPT,
+    PHYSICS_REASONING_SYSTEM_PROMPT,
+)
 
 try:
     from tqdm.asyncio import tqdm as async_tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
-RAW_DIR       = Path(__file__).parents[1] / "data" / "raw"
+RAW_DIR = Path(__file__).parents[1] / "data" / "raw"
 PROCESSED_DIR = Path(__file__).parents[1] / "data" / "processed"
-MASTER_JSONL  = PROCESSED_DIR / "dataset.jsonl"
+MASTER_JSONL = PROCESSED_DIR / "dataset.jsonl"
 
 CHUNKS_PER_BATCH = 6  # ~2000 tokens of transcript per API call
 
 # Software → system prompt routing
 _SOFTWARE_PROMPTS: dict[str, str] = {
-    "blender":   TUTORIAL_SYSTEM_PROMPT,
-    "maya":      CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "houdini":   CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "c4d":       CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "cinema4d":  CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "rhino":     CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "unreal":    CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "blender": TUTORIAL_SYSTEM_PROMPT,
+    "maya": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "houdini": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "c4d": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "cinema4d": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "rhino": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "unreal": CROSS_SOFTWARE_SYSTEM_PROMPT,
     "substance": CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "zbrush":    CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "multi":     CROSS_SOFTWARE_SYSTEM_PROMPT,
-    "physics":   PHYSICS_REASONING_SYSTEM_PROMPT,
+    "zbrush": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "multi": CROSS_SOFTWARE_SYSTEM_PROMPT,
+    "physics": PHYSICS_REASONING_SYSTEM_PROMPT,
 }
+
 
 def _system_prompt_for(software: str) -> str:
     return _SOFTWARE_PROMPTS.get(software.lower(), TUTORIAL_SYSTEM_PROMPT)
@@ -80,8 +86,7 @@ def _system_prompt_for(software: str) -> str:
 
 def build_prompt(chunks: list[dict], url: str, software: str = "blender") -> str:
     segs = "\n\n".join(
-        f"[{c['start']:.0f}s–{c['end']:.0f}s]\n{c['text']}"
-        for c in chunks
+        f"[{c['start']:.0f}s–{c['end']:.0f}s]\n{c['text']}" for c in chunks
     )
     sw_label = software if software != "blender" else "Blender"
     action = (
@@ -93,6 +98,7 @@ def build_prompt(chunks: list[dict], url: str, software: str = "blender") -> str
 
 
 # ─── Backend implementations ───────────────────────────────────────────────────
+
 
 async def call_vllm(
     client: httpx.AsyncClient,
@@ -148,14 +154,14 @@ async def call_claude(
 
 def parse_pairs(text: str) -> list[dict]:
     # Try to find any JSON fence block (json, python, text, or plain ```)
-    fence_match = re.search(r'```(?:json|python|text|)\s*([\s\S]*?)```', text)
+    fence_match = re.search(r"```(?:json|python|text|)\s*([\s\S]*?)```", text)
     if fence_match:
         json_str = fence_match.group(1).strip()
     else:
         # Use raw_decode to find the first valid JSON value without greedy matching
         decoder = json.JSONDecoder()
         # Scan for '[' or '{' and try to parse from there
-        for start_char in ('[', '{'):
+        for start_char in ("[", "{"):
             idx = text.find(start_char)
             if idx == -1:
                 continue
@@ -177,6 +183,7 @@ def parse_pairs(text: str) -> list[dict]:
 
 
 # ─── Core synthesis logic ──────────────────────────────────────────────────────
+
 
 async def synthesize_video(
     video_id: str,
@@ -217,9 +224,13 @@ async def synthesize_video(
                 if backend == "vllm":
                     # Round-robin across vLLM instances
                     base_url = vllm_urls[worker_idx % len(vllm_urls)]
-                    raw_response = await call_vllm(client, base_url, prompt, sys_prompt, vllm_model, vllm_api_key)
+                    raw_response = await call_vllm(
+                        client, base_url, prompt, sys_prompt, vllm_model, vllm_api_key
+                    )
                 else:
-                    raw_response = await call_claude(client, prompt, claude_api_key, sys_prompt)
+                    raw_response = await call_claude(
+                        client, prompt, claude_api_key, sys_prompt
+                    )
 
                 pairs = parse_pairs(raw_response)
                 for p in pairs:
@@ -231,7 +242,10 @@ async def synthesize_video(
 
             except Exception as e:
                 # Non-fatal: log and continue with next batch
-                print(f"Warning: synthesis failed for {video_id} batch {i}: {e}", file=sys.stderr)
+                print(
+                    f"Warning: synthesis failed for {video_id} batch {i}: {e}",
+                    file=sys.stderr,
+                )
 
         # Small delay between batches only for Claude (rate limits)
         if backend == "claude":
@@ -261,9 +275,15 @@ async def run_all(
     async with httpx.AsyncClient() as client:
         tasks = [
             synthesize_video(
-                vid, client, backend,
-                vllm_urls, vllm_model, vllm_api_key, claude_api_key,
-                idx, semaphore,
+                vid,
+                client,
+                backend,
+                vllm_urls,
+                vllm_model,
+                vllm_api_key,
+                claude_api_key,
+                idx,
+                semaphore,
             )
             for idx, vid in enumerate(video_ids)
         ]
@@ -289,7 +309,9 @@ async def run_all(
             elif completed % 50 == 0:
                 elapsed = time.time() - start
                 eta = (len(tasks) - completed) / max(completed / elapsed, 0.001)
-                print(f"  {completed}/{len(tasks)} videos | {total_pairs} pairs | ETA {eta/60:.0f}min")
+                print(
+                    f"  {completed}/{len(tasks)} videos | {total_pairs} pairs | ETA {eta / 60:.0f}min"
+                )
 
         if pbar:
             pbar.close()
@@ -309,19 +331,36 @@ def merge_master():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Bulk async synthesis of 3D training pairs (all software)")
+    parser = argparse.ArgumentParser(
+        description="Bulk async synthesis of 3D training pairs (all software)"
+    )
     parser.add_argument("--backend", choices=["vllm", "claude"], default="claude")
-    parser.add_argument("--vllm-urls", nargs="+", default=["http://localhost:8001"],
-                        help="vLLM server URLs (one per instance)")
-    parser.add_argument("--sources", default=None,
-                        help="Path to discovered_sources.json — used to tag videos with software metadata")
+    parser.add_argument(
+        "--vllm-urls",
+        nargs="+",
+        default=["http://localhost:8001"],
+        help="vLLM server URLs (one per instance)",
+    )
+    parser.add_argument(
+        "--sources",
+        default=None,
+        help="Path to discovered_sources.json — used to tag videos with software metadata",
+    )
     parser.add_argument("--vllm-model", default="Qwen/Qwen2.5-72B-Instruct")
-    parser.add_argument("--vllm-api-key", default=os.environ.get("VLLM_API_KEY", "nalana"))
+    parser.add_argument(
+        "--vllm-api-key", default=os.environ.get("VLLM_API_KEY", "nalana")
+    )
     parser.add_argument("--claude-api-key", default=os.environ.get("ANTHROPIC_API_KEY"))
-    parser.add_argument("--concurrency", type=int, default=None,
-                        help="Parallel synthesis workers (default: 40 for vLLM, 6 for claude)")
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Parallel synthesis workers (default: 40 for vLLM, 6 for claude)",
+    )
     parser.add_argument("--limit", type=int, help="Max videos to process")
-    parser.add_argument("--force", action="store_true", help="Re-process already synthesized videos")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-process already synthesized videos"
+    )
     args = parser.parse_args()
 
     if args.backend == "claude" and not args.claude_api_key:
@@ -334,10 +373,14 @@ def main():
     # Load pending video IDs
     raw_files = sorted(RAW_DIR.glob("*.json"))
     if args.limit:
-        raw_files = raw_files[:args.limit]
+        raw_files = raw_files[: args.limit]
 
     if not args.force:
-        done = set(p.stem for p in PROCESSED_DIR.glob("*.jsonl")) if PROCESSED_DIR.exists() else set()
+        done = (
+            set(p.stem for p in PROCESSED_DIR.glob("*.jsonl"))
+            if PROCESSED_DIR.exists()
+            else set()
+        )
         raw_files = [p for p in raw_files if p.stem not in done]
 
     video_ids = [p.stem for p in raw_files]
@@ -355,26 +398,30 @@ def main():
     print()
 
     start = time.time()
-    total_pairs = asyncio.run(run_all(
-        video_ids,
-        backend=args.backend,
-        vllm_urls=args.vllm_urls,
-        vllm_model=args.vllm_model,
-        vllm_api_key=args.vllm_api_key,
-        claude_api_key=args.claude_api_key,
-        concurrency=args.concurrency,
-    ))
+    total_pairs = asyncio.run(
+        run_all(
+            video_ids,
+            backend=args.backend,
+            vllm_urls=args.vllm_urls,
+            vllm_model=args.vllm_model,
+            vllm_api_key=args.vllm_api_key,
+            claude_api_key=args.claude_api_key,
+            concurrency=args.concurrency,
+        )
+    )
 
     elapsed = time.time() - start
-    print(f"\n{'─'*40}")
+    print(f"\n{'─' * 40}")
     print(f"Videos processed: {len(video_ids)}")
     print(f"Training pairs:   {total_pairs}")
-    print(f"Time:             {elapsed/60:.1f} min  ({len(video_ids)/max(elapsed,1):.1f} videos/s)")
+    print(
+        f"Time:             {elapsed / 60:.1f} min  ({len(video_ids) / max(elapsed, 1):.1f} videos/s)"
+    )
 
     print("\nMerging master dataset...")
     total = merge_master()
     print(f"dataset.jsonl: {total} total pairs")
-    print(f"\nNext step: python train_prep.py")
+    print("\nNext step: python train_prep.py")
 
 
 if __name__ == "__main__":

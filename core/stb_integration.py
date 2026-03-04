@@ -34,9 +34,12 @@ from typing import Optional
 NALANA_API_URL = os.environ.get("NALANA_API_URL", "http://localhost:8000")
 NALANA_API_KEY = os.environ.get("NALANA_API_KEY", "")
 NALANA_TIMEOUT = int(os.environ.get("NALANA_TIMEOUT", "30"))
-NALANA_FALLBACK_TO_GPT = os.environ.get("NALANA_FALLBACK_TO_GPT", "true").lower() == "true"
+NALANA_FALLBACK_TO_GPT = (
+    os.environ.get("NALANA_FALLBACK_TO_GPT", "true").lower() == "true"
+)
 
 # ─── Nalana API Client ────────────────────────────────────────────────────────
+
 
 def nalana_to_json(
     transcript: str,
@@ -171,17 +174,17 @@ def _python_to_ops(blender_python: str) -> list:
     # Use a balanced-paren approach to handle args containing nested parens
     # like value=(0, 0, 0.2) which the simpler [^)]* pattern would truncate.
     for m in re.finditer(r"bpy\.ops\.(\w+\.\w+)\(", blender_python):
-        op_name = m.group(1)
+        m.group(1)
         start = m.end()  # index just after opening '('
         depth = 1
         pos = start
         while pos < len(blender_python) and depth > 0:
-            if blender_python[pos] == '(':
+            if blender_python[pos] == "(":
                 depth += 1
-            elif blender_python[pos] == ')':
+            elif blender_python[pos] == ")":
                 depth -= 1
             pos += 1
-        args_str = blender_python[start:pos - 1]  # content between outer parens
+        args_str = blender_python[start : pos - 1]  # content between outer parens
         kwargs = _parse_kwargs(args_str)
         ops.append({"op": m.group(1), "kwargs": kwargs})
 
@@ -216,19 +219,22 @@ def _parse_kwargs(args_str: str) -> dict:
     return kwargs
 
 
-def _gpt4o_fallback(transcript: str, scene_context: Optional[dict], api_key: str) -> dict:
+def _gpt4o_fallback(
+    transcript: str, scene_context: Optional[dict], api_key: str
+) -> dict:
     """
     Exact replica of STB's original gpt_to_json() for fallback.
     Only called when Nalana server is unreachable.
     """
     try:
         from openai import OpenAI
+
         client = OpenAI(api_key=api_key)
 
         system_prompt = (
             "You are a Blender automation agent.\n"
             "Output ONLY raw JSON (no prose, no code fences).\n"
-            "Each command must be of the form: {\"op\":\"<module.op>\",\"kwargs\":{}}.\n"
+            'Each command must be of the form: {"op":"<module.op>","kwargs":{}}.\n'
             "If multiple steps are implied, output a JSON array of such dicts.\n"
             "Prefer creative operators (object/mesh/curve/transform/material/node/render).\n"
             "Never use file/quit/addon/script/image.save operators."
@@ -236,7 +242,9 @@ def _gpt4o_fallback(transcript: str, scene_context: Optional[dict], api_key: str
 
         user_content = transcript
         if scene_context:
-            user_content = f"Scene: {json.dumps(scene_context)}\n\nCommand: {transcript}"
+            user_content = (
+                f"Scene: {json.dumps(scene_context)}\n\nCommand: {transcript}"
+            )
 
         resp = client.chat.completions.create(
             model="gpt-4o",
@@ -263,6 +271,7 @@ def _gpt4o_fallback(transcript: str, scene_context: Optional[dict], api_key: str
 
 # ─── Scene Context Extraction ─────────────────────────────────────────────────
 # Call this inside Blender's Python context and pass result to nalana_to_json()
+
 
 def get_nalana_scene_context() -> dict:
     """
@@ -296,9 +305,15 @@ def get_nalana_scene_context() -> dict:
                 "scale": list(active.scale),
                 "rotation_euler": list(active.rotation_euler),
                 "dimensions": list(active.dimensions),
-                "vertex_count": len(active.data.vertices) if hasattr(active.data, "vertices") else 0,
-                "face_count": len(active.data.polygons) if hasattr(active.data, "polygons") else 0,
-                "material_count": len(active.data.materials) if hasattr(active.data, "materials") else 0,
+                "vertex_count": len(active.data.vertices)
+                if hasattr(active.data, "vertices")
+                else 0,
+                "face_count": len(active.data.polygons)
+                if hasattr(active.data, "polygons")
+                else 0,
+                "material_count": len(active.data.materials)
+                if hasattr(active.data, "materials")
+                else 0,
             }
 
         scene_context["selected_objects"] = [
@@ -315,11 +330,16 @@ def get_nalana_scene_context() -> dict:
 
     except ImportError:
         # Running outside Blender (testing)
-        return {"software": "blender", "mode": "OBJECT", "note": "Called outside Blender"}
+        return {
+            "software": "blender",
+            "mode": "OBJECT",
+            "note": "Called outside Blender",
+        }
 
 
 # ─── Multi-turn Session State ─────────────────────────────────────────────────
 # Enables Nalana's conversation memory within a Blender session.
+
 
 class NalanaSession:
     """
@@ -348,20 +368,24 @@ class NalanaSession:
             transcript=transcript,
             scene_context=scene_context,
             software=software,
-            conversation_history=self.history[-self.max_history:],
+            conversation_history=self.history[-self.max_history :],
             openai_api_key=openai_api_key,
         )
 
         # Append to history
-        self.history.append({
-            "role": "user",
-            "content": transcript,
-            "scene_context": scene_context,
-        })
-        self.history.append({
-            "role": "assistant",
-            "content": json.dumps(result),
-        })
+        self.history.append(
+            {
+                "role": "user",
+                "content": transcript,
+                "scene_context": scene_context,
+            }
+        )
+        self.history.append(
+            {
+                "role": "assistant",
+                "content": json.dumps(result),
+            }
+        )
 
         return result
 
@@ -378,6 +402,7 @@ class NalanaSession:
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────
+
 
 def is_nalana_running() -> bool:
     """Check if the Nalana API server is reachable."""

@@ -23,9 +23,9 @@ Software Targets:
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any
-import json
 
 # ─── Universal Operation Catalog ───────────────────────────────────────────────
+
 
 @dataclass
 class UniversalOp:
@@ -44,6 +44,7 @@ class UniversalOp:
 
 # ─── Software compilers ────────────────────────────────────────────────────────
 
+
 class BlenderCompiler:
     def compile(self, op: UniversalOp) -> str:
         a = op.args
@@ -52,7 +53,9 @@ class BlenderCompiler:
             case "ADD_CUBE":
                 s = a.get("size", 2)
                 loc = a.get("location", (0, 0, 0))
-                return f"bpy.ops.mesh.primitive_cube_add(size={s}, location={tuple(loc)})"
+                return (
+                    f"bpy.ops.mesh.primitive_cube_add(size={s}, location={tuple(loc)})"
+                )
             case "ADD_SPHERE":
                 r = a.get("radius", 1)
                 seg = a.get("segments", 32)
@@ -95,6 +98,7 @@ class BlenderCompiler:
                 angle = a.get("angle_deg", 90)
                 axis = a.get("axis", "Z")
                 import math
+
                 rad = round(math.radians(angle), 6)
                 return f"bpy.ops.transform.rotate(value={rad}, orient_axis='{axis}')"
             case "SCALE":
@@ -130,7 +134,9 @@ class BlenderCompiler:
             case "BEVEL":
                 offset = a.get("offset", 0.1)
                 segs = a.get("segments", 2)
-                return f"bpy.ops.mesh.bevel(offset={offset}, segments={segs}, profile=0.5)"
+                return (
+                    f"bpy.ops.mesh.bevel(offset={offset}, segments={segs}, profile=0.5)"
+                )
             case "LOOP_CUT":
                 n = a.get("cuts", 1)
                 return f"bpy.ops.mesh.loop_cut(number_cuts={n}, smoothness=0)"
@@ -233,8 +239,10 @@ class BlenderCompiler:
                 light_type = a.get("type", "AREA").upper()
                 energy = a.get("energy", 500)
                 loc = a.get("location", (4, -4, 6))
-                return (f"bpy.ops.object.light_add(type='{light_type}', location={tuple(loc)})\n"
-                        f"bpy.context.object.data.energy = {energy}")
+                return (
+                    f"bpy.ops.object.light_add(type='{light_type}', location={tuple(loc)})\n"
+                    f"bpy.context.object.data.energy = {energy}"
+                )
             case "THREE_POINT_LIGHTING":
                 return (
                     "bpy.ops.object.light_add(type='AREA', location=(4,-4,6))\n"
@@ -264,7 +272,7 @@ class MayaCompiler:
         match op.op:
             case "ADD_CUBE":
                 s = a.get("size", 2) / 2
-                return f"cmds.polyCube(w={s*2}, h={s*2}, d={s*2})"
+                return f"cmds.polyCube(w={s * 2}, h={s * 2}, d={s * 2})"
             case "ADD_SPHERE":
                 r = a.get("radius", 1)
                 return f"cmds.polySphere(r={r}, sx=32, sy=16)"
@@ -299,10 +307,11 @@ class MayaCompiler:
                 ang = a.get("angle_deg", 90)
                 axis = a.get("axis", "Z").lower()
                 kwargs = {f"r{axis}": ang}
-                return f"cmds.rotate({', '.join(f'{k}={v}' for k,v in kwargs.items())}, r=True)"
+                return f"cmds.rotate({', '.join(f'{k}={v}' for k, v in kwargs.items())}, r=True)"
             case "SCALE":
-                v = a.get("value", (1,1,1))
-                if isinstance(v, (int,float)): v = (v,v,v)
+                v = a.get("value", (1, 1, 1))
+                if isinstance(v, (int, float)):
+                    v = (v, v, v)
                 return f"cmds.scale({v[0]}, {v[1]}, {v[2]}, r=True)"
             case "RENDER":
                 return "cmds.render()"
@@ -316,20 +325,28 @@ class Cinema4DCompiler:
         match op.op:
             case "ADD_CUBE":
                 s = a.get("size", 2) * 100  # C4D uses cm
-                return (f"obj = c4d.BaseObject(c4d.Ocube)\n"
-                        f"obj[c4d.PRIM_CUBE_LEN] = c4d.Vector({s},{s},{s})\n"
-                        f"doc.InsertObject(obj)\nc4d.EventAdd()")
+                return (
+                    f"obj = c4d.BaseObject(c4d.Ocube)\n"
+                    f"obj[c4d.PRIM_CUBE_LEN] = c4d.Vector({s},{s},{s})\n"
+                    f"doc.InsertObject(obj)\nc4d.EventAdd()"
+                )
             case "ADD_SPHERE":
                 r = a.get("radius", 1) * 100
-                return (f"obj = c4d.BaseObject(c4d.Osphere)\n"
-                        f"obj[c4d.PRIM_SPHERE_RAD] = {r}\n"
-                        f"doc.InsertObject(obj)\nc4d.EventAdd()")
+                return (
+                    f"obj = c4d.BaseObject(c4d.Osphere)\n"
+                    f"obj[c4d.PRIM_SPHERE_RAD] = {r}\n"
+                    f"doc.InsertObject(obj)\nc4d.EventAdd()"
+                )
             case "ADD_SUBDIVISION":
-                return ("sds = c4d.BaseObject(c4d.Osds)\n"
-                        "sds.InsertUnder(doc.GetActiveObject())\nc4d.EventAdd()")
+                return (
+                    "sds = c4d.BaseObject(c4d.Osds)\n"
+                    "sds.InsertUnder(doc.GetActiveObject())\nc4d.EventAdd()"
+                )
             case "ADD_MIRROR":
-                return ("sym = c4d.BaseObject(c4d.Osymmetry)\n"
-                        "sym.InsertUnder(doc.GetActiveObject())\nc4d.EventAdd()")
+                return (
+                    "sym = c4d.BaseObject(c4d.Osymmetry)\n"
+                    "sym.InsertUnder(doc.GetActiveObject())\nc4d.EventAdd()"
+                )
             case "SHADE_SMOOTH":
                 return "c4d.CallCommand(12139)  # Phong tag"
             case _:
@@ -342,14 +359,18 @@ class HoudiniCompiler:
         match op.op:
             case "ADD_CUBE":
                 s = a.get("size", 2)
-                return (f"geo = hou.node('/obj').createNode('geo')\n"
-                        f"box = geo.createNode('box')\n"
-                        f"box.parm('sizex').set({s})\nbox.parm('sizey').set({s})\nbox.parm('sizez').set({s})")
+                return (
+                    f"geo = hou.node('/obj').createNode('geo')\n"
+                    f"box = geo.createNode('box')\n"
+                    f"box.parm('sizex').set({s})\nbox.parm('sizey').set({s})\nbox.parm('sizez').set({s})"
+                )
             case "ADD_SPHERE":
                 r = a.get("radius", 1)
-                return (f"geo = hou.node('/obj').createNode('geo')\n"
-                        f"sphere = geo.createNode('sphere')\n"
-                        f"sphere.parm('rad1').set({r})")
+                return (
+                    f"geo = hou.node('/obj').createNode('geo')\n"
+                    f"sphere = geo.createNode('sphere')\n"
+                    f"sphere.parm('rad1').set({r})"
+                )
             case "EXTRUDE":
                 d = a.get("amount", 1)
                 return f"polyextrude = geo.createNode('polyextrude::2.0')\npolyextrude.parm('dist').set({d})"
@@ -383,11 +404,11 @@ class RhinoCompiler:
 # ─── Compiler registry ─────────────────────────────────────────────────────────
 
 COMPILERS: dict[str, type] = {
-    "blender":   BlenderCompiler,
-    "maya":      MayaCompiler,
-    "cinema4d":  Cinema4DCompiler,
-    "houdini":   HoudiniCompiler,
-    "rhino":     RhinoCompiler,
+    "blender": BlenderCompiler,
+    "maya": MayaCompiler,
+    "cinema4d": Cinema4DCompiler,
+    "houdini": HoudiniCompiler,
+    "rhino": RhinoCompiler,
 }
 
 
@@ -408,52 +429,53 @@ def op_from_blender_python(blender_python: str, voice_command: str = "") -> Univ
     Used during dataset normalization.
     """
     import re
+
     py = blender_python.strip()
 
     # Map common bpy.ops patterns to Universal ops
     patterns = [
-        (r"mesh\.primitive_cube_add",     "ADD_CUBE"),
-        (r"mesh\.primitive_uv_sphere_add","ADD_SPHERE"),
+        (r"mesh\.primitive_cube_add", "ADD_CUBE"),
+        (r"mesh\.primitive_uv_sphere_add", "ADD_SPHERE"),
         (r"mesh\.primitive_cylinder_add", "ADD_CYLINDER"),
-        (r"mesh\.primitive_plane_add",    "ADD_PLANE"),
-        (r"mesh\.primitive_torus_add",    "ADD_TORUS"),
-        (r"mesh\.primitive_cone_add",     "ADD_CONE"),
-        (r"mesh\.extrude_region_move",    "EXTRUDE"),
-        (r"mesh\.inset_faces",            "INSET"),
-        (r"mesh\.bevel",                  "BEVEL"),
-        (r"mesh\.loop_cut",               "LOOP_CUT"),
-        (r"mesh\.subdivide",              "SUBDIVIDE"),
-        (r"mesh\.bridge_edge_loops",      "BRIDGE"),
-        (r"mesh\.dissolve_edges",         "DISSOLVE_EDGES"),
-        (r"mesh\.dissolve_faces",         "DISSOLVE_FACES"),
-        (r"mesh\.merge",                  "MERGE_VERTICES"),
-        (r"mesh\.remove_doubles",         "REMOVE_DOUBLES"),
-        (r"mesh\.flip_normals",           "FLIP_NORMALS"),
-        (r"mesh\.normals_make_consistent","RECALC_NORMALS"),
-        (r"transform\.translate",         "TRANSLATE"),
-        (r"transform\.rotate",            "ROTATE"),
-        (r"transform\.resize",            "SCALE"),
-        (r"object\.shade_smooth",         "SHADE_SMOOTH"),
-        (r"object\.shade_flat",           "SHADE_FLAT"),
-        (r"object\.duplicate",            "DUPLICATE"),
-        (r"object\.delete",               "DELETE"),
-        (r"object\.join",                 "JOIN"),
-        (r"modifier_add.*SUBSURF",        "ADD_SUBDIVISION"),
-        (r"modifier_add.*MIRROR",         "ADD_MIRROR"),
-        (r"modifier_add.*SOLIDIFY",       "ADD_SOLIDIFY"),
-        (r"modifier_add.*BEVEL",          "ADD_BEVEL_MOD"),
-        (r"modifier_add.*ARRAY",          "ADD_ARRAY"),
-        (r"modifier_add.*BOOLEAN",        "ADD_BOOLEAN"),
-        (r"object\.modifier_apply",       "APPLY_MODIFIER"),
-        (r"mode_set.*EDIT",               "ENTER_EDIT_MODE"),
-        (r"mode_set.*OBJECT",             "ENTER_OBJECT_MODE"),
-        (r"mode_set.*SCULPT",             "ENTER_SCULPT_MODE"),
-        (r"uv\.unwrap",                   "UNWRAP_UV"),
-        (r"uv\.smart_project",            "SMART_UV_PROJECT"),
-        (r"object\.light_add.*AREA",      "ADD_LIGHT"),
-        (r"render\.render",               "RENDER"),
-        (r"voxel_remesh",                 "VOXEL_REMESH"),
-        (r"dynamic_topology_toggle",      "DYNAMIC_TOPOLOGY"),
+        (r"mesh\.primitive_plane_add", "ADD_PLANE"),
+        (r"mesh\.primitive_torus_add", "ADD_TORUS"),
+        (r"mesh\.primitive_cone_add", "ADD_CONE"),
+        (r"mesh\.extrude_region_move", "EXTRUDE"),
+        (r"mesh\.inset_faces", "INSET"),
+        (r"mesh\.bevel", "BEVEL"),
+        (r"mesh\.loop_cut", "LOOP_CUT"),
+        (r"mesh\.subdivide", "SUBDIVIDE"),
+        (r"mesh\.bridge_edge_loops", "BRIDGE"),
+        (r"mesh\.dissolve_edges", "DISSOLVE_EDGES"),
+        (r"mesh\.dissolve_faces", "DISSOLVE_FACES"),
+        (r"mesh\.merge", "MERGE_VERTICES"),
+        (r"mesh\.remove_doubles", "REMOVE_DOUBLES"),
+        (r"mesh\.flip_normals", "FLIP_NORMALS"),
+        (r"mesh\.normals_make_consistent", "RECALC_NORMALS"),
+        (r"transform\.translate", "TRANSLATE"),
+        (r"transform\.rotate", "ROTATE"),
+        (r"transform\.resize", "SCALE"),
+        (r"object\.shade_smooth", "SHADE_SMOOTH"),
+        (r"object\.shade_flat", "SHADE_FLAT"),
+        (r"object\.duplicate", "DUPLICATE"),
+        (r"object\.delete", "DELETE"),
+        (r"object\.join", "JOIN"),
+        (r"modifier_add.*SUBSURF", "ADD_SUBDIVISION"),
+        (r"modifier_add.*MIRROR", "ADD_MIRROR"),
+        (r"modifier_add.*SOLIDIFY", "ADD_SOLIDIFY"),
+        (r"modifier_add.*BEVEL", "ADD_BEVEL_MOD"),
+        (r"modifier_add.*ARRAY", "ADD_ARRAY"),
+        (r"modifier_add.*BOOLEAN", "ADD_BOOLEAN"),
+        (r"object\.modifier_apply", "APPLY_MODIFIER"),
+        (r"mode_set.*EDIT", "ENTER_EDIT_MODE"),
+        (r"mode_set.*OBJECT", "ENTER_OBJECT_MODE"),
+        (r"mode_set.*SCULPT", "ENTER_SCULPT_MODE"),
+        (r"uv\.unwrap", "UNWRAP_UV"),
+        (r"uv\.smart_project", "SMART_UV_PROJECT"),
+        (r"object\.light_add.*AREA", "ADD_LIGHT"),
+        (r"render\.render", "RENDER"),
+        (r"voxel_remesh", "VOXEL_REMESH"),
+        (r"dynamic_topology_toggle", "DYNAMIC_TOPOLOGY"),
     ]
 
     for pattern, universal_op in patterns:
@@ -475,8 +497,7 @@ def normalize_training_pair(pair: dict) -> dict:
 
     pair["universal_dsl"] = universal_op.to_dict()
     pair["software_implementations"] = {
-        sw: compile_op(universal_op, sw)
-        for sw in COMPILERS
+        sw: compile_op(universal_op, sw) for sw in COMPILERS
     }
     return pair
 
@@ -494,8 +515,8 @@ if __name__ == "__main__":
     ]
 
     for sw in COMPILERS:
-        print(f"\n{'═'*50}")
+        print(f"\n{'═' * 50}")
         print(f"  {sw.upper()}")
-        print(f"{'═'*50}")
+        print(f"{'═' * 50}")
         for code in compile_sequence(ops, sw):
             print(code)

@@ -19,7 +19,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 
@@ -34,9 +33,9 @@ def check_health(api_url: str, api_key: str, timeout: float = 10.0) -> bool:
         if api_key:
             req.add_header("Authorization", f"Bearer {api_key}")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read()
+            resp.read()
             return resp.status == 200
-    except urllib.error.HTTPError as e:
+    except urllib.error.HTTPError:
         # Some servers return 200 on /v1/models but 404 on /v1/health — try models
         try:
             url2 = f"{api_url}/v1/models"
@@ -56,10 +55,12 @@ def send_test_command(api_url: str, api_key: str, timeout: float = 60.0) -> dict
     import urllib.request
     import urllib.error
 
-    payload = json.dumps({
-        "voice_command": "add a cube at the origin",
-        "scene_context": "Empty Blender scene, no objects, Object Mode",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": "add a cube at the origin",
+            "scene_context": "Empty Blender scene, no objects, Object Mode",
+        }
+    ).encode("utf-8")
 
     url = f"{api_url}/v1/command"
     req = urllib.request.Request(
@@ -75,20 +76,22 @@ def send_test_command(api_url: str, api_key: str, timeout: float = 60.0) -> dict
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
-    except Exception as e:
+    except Exception:
         # Try the OpenAI-compatible chat endpoint as a fallback
         try:
-            chat_payload = json.dumps({
-                "model": "nalana",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Voice command: add a cube at the origin\nScene context: Empty Blender scene, Object Mode",
-                    }
-                ],
-                "max_tokens": 512,
-                "temperature": 0.0,
-            }).encode("utf-8")
+            chat_payload = json.dumps(
+                {
+                    "model": "nalana",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Voice command: add a cube at the origin\nScene context: Empty Blender scene, Object Mode",
+                        }
+                    ],
+                    "max_tokens": 512,
+                    "temperature": 0.0,
+                }
+            ).encode("utf-8")
 
             url2 = f"{api_url}/v1/chat/completions"
             req2 = urllib.request.Request(
@@ -108,7 +111,7 @@ def send_test_command(api_url: str, api_key: str, timeout: float = 60.0) -> dict
                     code = content.split("```python")[1].split("```")[0].strip()
                     return {"blender_python": code, "raw_content": content}
                 return {"blender_python": None, "raw_content": content}
-        except Exception as e2:
+        except Exception:
             return None
 
 
@@ -175,9 +178,13 @@ except Exception as e:
 
 def main():
     parser = argparse.ArgumentParser(description="Nalana deployment health check")
-    parser.add_argument("--api-url", default=os.environ.get("NALANA_API_URL", "http://localhost:9000"))
+    parser.add_argument(
+        "--api-url", default=os.environ.get("NALANA_API_URL", "http://localhost:9000")
+    )
     parser.add_argument("--api-key", default=os.environ.get("NALANA_API_KEY", "nalana"))
-    parser.add_argument("--no-blender", action="store_true", help="Skip Blender execution test")
+    parser.add_argument(
+        "--no-blender", action="store_true", help="Skip Blender execution test"
+    )
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
 
@@ -213,13 +220,17 @@ def main():
         print(f"  {msg}")
         issues.append(msg)
     elif "blender_python" not in response or not response.get("blender_python"):
-        msg = f"FAIL  Response missing blender_python field: {json.dumps(response)[:200]}"
+        msg = (
+            f"FAIL  Response missing blender_python field: {json.dumps(response)[:200]}"
+        )
         print(f"  {msg}")
         issues.append(msg)
     else:
         blender_python = response["blender_python"]
-        print(f"  PASS  Response has blender_python:")
-        print(f"        {blender_python[:120]}{'...' if len(blender_python) > 120 else ''}")
+        print("  PASS  Response has blender_python:")
+        print(
+            f"        {blender_python[:120]}{'...' if len(blender_python) > 120 else ''}"
+        )
         passed.append("test_command")
 
         # Also check for reasoning/op
@@ -240,7 +251,7 @@ def main():
             passed.append("blender_execution")
         else:
             # Non-blocking: warn but don't fail
-            print(f"  WARN  Blender execution had issues (non-blocking):")
+            print("  WARN  Blender execution had issues (non-blocking):")
             for line in output.strip().split("\n")[-5:]:
                 if line.strip():
                     print(f"        {line}")
@@ -255,10 +266,12 @@ def main():
         print(f"  Passed: {len(passed)}/{len(passed)} checks")
         print()
         print("  Try it:")
-        print(f'  curl -X POST {api_url}/v1/command \\')
+        print(f"  curl -X POST {api_url}/v1/command \\")
         print(f'       -H "Authorization: Bearer {args.api_key}" \\')
-        print(f'       -H "Content-Type: application/json" \\')
-        print(f'       -d \'{{"voice_command": "add a red sphere", "scene_context": "Empty scene"}}\'')
+        print('       -H "Content-Type: application/json" \\')
+        print(
+            '       -d \'{"voice_command": "add a red sphere", "scene_context": "Empty scene"}\''
+        )
         sys.exit(0)
     else:
         print(f"Nalana health check FAILED ({len(issues)} issue(s)):")

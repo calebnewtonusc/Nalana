@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import re
@@ -23,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 try:
     import aiohttp
@@ -88,7 +87,10 @@ SPLINE_SHAPE_MAP = {
 
 # ─── Spline scene parser ───────────────────────────────────────────────────────
 
-def parse_spline_color(color_data: dict | list | None) -> tuple[float, float, float, float]:
+
+def parse_spline_color(
+    color_data: dict | list | None,
+) -> tuple[float, float, float, float]:
     """Convert Spline color format (0-255 int or 0-1 float) to RGBA 0-1 tuple."""
     if color_data is None:
         return (0.8, 0.8, 0.8, 1.0)
@@ -230,23 +232,32 @@ def spline_object_to_dsl(obj: dict) -> list[dict]:
 
     args["location"] = list(transform["location"])
 
-    ops.append({
-        "op": dsl_op,
-        "args": args,
-        "target": name,
-        "intent": f"Create {obj_type} named '{name}'",
-    })
+    ops.append(
+        {
+            "op": dsl_op,
+            "args": args,
+            "target": name,
+            "intent": f"Create {obj_type} named '{name}'",
+        }
+    )
 
     # Material operation
-    mat_data = obj.get("material", obj.get("materials", [None])[0] if isinstance(obj.get("materials"), list) else None)
+    mat_data = obj.get(
+        "material",
+        obj.get("materials", [None])[0]
+        if isinstance(obj.get("materials"), list)
+        else None,
+    )
     if mat_data and isinstance(mat_data, dict):
         mat_props = parse_spline_material(mat_data)
-        ops.append({
-            "op": "SET_MATERIAL",
-            "args": mat_props,
-            "target": name,
-            "intent": f"Apply {describe_material(mat_props)} material to '{name}'",
-        })
+        ops.append(
+            {
+                "op": "SET_MATERIAL",
+                "args": mat_props,
+                "target": name,
+                "intent": f"Apply {describe_material(mat_props)} material to '{name}'",
+            }
+        )
 
     return ops
 
@@ -257,8 +268,12 @@ def spline_scene_to_training_pairs(scene_data: dict, scene_id: str) -> list[dict
     Returns one pair per significant object with material information.
     """
     pairs = []
-    scene_name = scene_data.get("name", scene_data.get("title", f"scene_{scene_id[:8]}"))
-    objects = scene_data.get("objects", scene_data.get("children", scene_data.get("nodes", [])))
+    scene_name = scene_data.get(
+        "name", scene_data.get("title", f"scene_{scene_id[:8]}")
+    )
+    objects = scene_data.get(
+        "objects", scene_data.get("children", scene_data.get("nodes", []))
+    )
 
     if not objects:
         log.debug("Scene %s has no parseable objects", scene_id)
@@ -291,26 +306,38 @@ def spline_scene_to_training_pairs(scene_data: dict, scene_id: str) -> list[dict
 
         if shape_op["op"] == "ADD_CUBE":
             size = shape_op["args"].get("size", 2.0)
-            blender_lines.append(f"bpy.ops.mesh.primitive_cube_add(size={size}, location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_cube_add(size={size}, location={tuple(loc)})"
+            )
         elif shape_op["op"] == "ADD_SPHERE":
             r = shape_op["args"].get("radius", 1.0)
             seg = shape_op["args"].get("segments", 32)
-            blender_lines.append(f"bpy.ops.mesh.primitive_uv_sphere_add(radius={r}, segments={seg}, location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_uv_sphere_add(radius={r}, segments={seg}, location={tuple(loc)})"
+            )
         elif shape_op["op"] == "ADD_CYLINDER":
             r = shape_op["args"].get("radius", 1.0)
             d = shape_op["args"].get("depth", 2.0)
-            blender_lines.append(f"bpy.ops.mesh.primitive_cylinder_add(radius={r}, depth={d}, location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_cylinder_add(radius={r}, depth={d}, location={tuple(loc)})"
+            )
         elif shape_op["op"] == "ADD_CONE":
             r1 = shape_op["args"].get("radius1", 1.0)
             r2 = shape_op["args"].get("radius2", 0.0)
             d = shape_op["args"].get("depth", 2.0)
-            blender_lines.append(f"bpy.ops.mesh.primitive_cone_add(radius1={r1}, radius2={r2}, depth={d}, location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_cone_add(radius1={r1}, radius2={r2}, depth={d}, location={tuple(loc)})"
+            )
         elif shape_op["op"] == "ADD_TORUS":
             R = shape_op["args"].get("major_radius", 1.0)
             r = shape_op["args"].get("minor_radius", 0.25)
-            blender_lines.append(f"bpy.ops.mesh.primitive_torus_add(major_radius={R}, minor_radius={r}, location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_torus_add(major_radius={R}, minor_radius={r}, location={tuple(loc)})"
+            )
         else:
-            blender_lines.append(f"bpy.ops.mesh.primitive_cube_add(location={tuple(loc)})")
+            blender_lines.append(
+                f"bpy.ops.mesh.primitive_cube_add(location={tuple(loc)})"
+            )
 
         obj_var = "bpy.context.active_object"
         blender_lines += [
@@ -334,7 +361,7 @@ def spline_scene_to_training_pairs(scene_data: dict, scene_id: str) -> list[dict
                 f"bsdf.inputs['Metallic'].default_value = {metal:.3f}",
             ]
             if emit > 0:
-                ei = mat_props.get("emissive", [0, 0, 0, 1])
+                mat_props.get("emissive", [0, 0, 0, 1])
                 blender_lines.append(
                     f"bsdf.inputs['Emission Strength'].default_value = {emit:.3f}"
                 )
@@ -375,6 +402,7 @@ def spline_scene_to_training_pairs(scene_data: dict, scene_id: str) -> list[dict
 
 # ─── Scraper class ─────────────────────────────────────────────────────────────
 
+
 class SplineScraper:
     def __init__(
         self,
@@ -408,10 +436,14 @@ class SplineScraper:
                         pass
             log.info("Resuming: %d scenes already collected", len(self._scene_ids_seen))
 
-    async def _rate_limited_get(self, url: str, **kwargs) -> aiohttp.ClientResponse | None:
+    async def _rate_limited_get(
+        self, url: str, **kwargs
+    ) -> aiohttp.ClientResponse | None:
         """GET with rate limiting and error handling."""
         if self.session is None:
-            raise RuntimeError("HTTP session not initialized. Use 'async with SplineScraper() as s:'")
+            raise RuntimeError(
+                "HTTP session not initialized. Use 'async with SplineScraper() as s:'"
+            )
         now = time.monotonic()
         elapsed = now - self._last_request_time
         if elapsed < self.delay:
@@ -419,7 +451,9 @@ class SplineScraper:
 
         self._last_request_time = time.monotonic()
         try:
-            resp = await self.session.get(url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=30), **kwargs)
+            resp = await self.session.get(
+                url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=30), **kwargs
+            )
             return resp
         except Exception as e:
             log.warning("GET %s failed: %s", url, e)
@@ -459,8 +493,10 @@ class SplineScraper:
             url = GALLERY_ENDPOINTS[0].format(offset=offset)
             resp = await self._rate_limited_get(url)
             if resp is None or resp.status != 200:
-                log.info("Community API unavailable (status %s), trying fallback",
-                         resp.status if resp else "timeout")
+                log.info(
+                    "Community API unavailable (status %s), trying fallback",
+                    resp.status if resp else "timeout",
+                )
                 break
 
             try:
@@ -498,7 +534,9 @@ class SplineScraper:
         html = await resp.text()
 
         # Next.js embeds page data as JSON in __NEXT_DATA__ script tag
-        match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        match = re.search(
+            r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL
+        )
         if match:
             try:
                 next_data = json.loads(match.group(1))
@@ -573,14 +611,19 @@ class SplineScraper:
                 scenes = await self._discover_via_html(self.limit)
 
             if not scenes:
-                log.warning("No scenes discovered. Generating synthetic Spline-style training pairs.")
+                log.warning(
+                    "No scenes discovered. Generating synthetic Spline-style training pairs."
+                )
                 return self._write_synthetic_pairs()
 
             output_file = self.output_dir / "scenes.jsonl"
             total_pairs = 0
             processed = 0
 
-            with open(output_file, "a") as f_out, tqdm(total=min(len(scenes), self.limit), desc="Spline scenes") as pbar:
+            with (
+                open(output_file, "a") as f_out,
+                tqdm(total=min(len(scenes), self.limit), desc="Spline scenes") as pbar,
+            ):
                 for scene_record in scenes:
                     if processed >= self.limit:
                         break
@@ -607,7 +650,12 @@ class SplineScraper:
                     pbar.update(1)
                     pbar.set_postfix(pairs=total_pairs)
 
-        log.info("Done. %d scenes → %d training pairs → %s", processed, total_pairs, output_file)
+        log.info(
+            "Done. %d scenes → %d training pairs → %s",
+            processed,
+            total_pairs,
+            output_file,
+        )
         return total_pairs
 
     def _write_synthetic_pairs(self) -> int:
@@ -618,43 +666,59 @@ class SplineScraper:
         """
         SYNTHETIC_SCENES = [
             {
-                "shape": "sphere", "color": [0.2, 0.5, 1.0, 1.0],
-                "roughness": 0.1, "metalness": 0.0,
+                "shape": "sphere",
+                "color": [0.2, 0.5, 1.0, 1.0],
+                "roughness": 0.1,
+                "metalness": 0.0,
                 "description": "glossy blue sphere",
             },
             {
-                "shape": "box", "color": [1.0, 0.3, 0.2, 1.0],
-                "roughness": 0.8, "metalness": 0.0,
+                "shape": "box",
+                "color": [1.0, 0.3, 0.2, 1.0],
+                "roughness": 0.8,
+                "metalness": 0.0,
                 "description": "matte red cube",
             },
             {
-                "shape": "cylinder", "color": [0.9, 0.9, 0.9, 1.0],
-                "roughness": 0.0, "metalness": 1.0,
+                "shape": "cylinder",
+                "color": [0.9, 0.9, 0.9, 1.0],
+                "roughness": 0.0,
+                "metalness": 1.0,
                 "description": "metallic white cylinder",
             },
             {
-                "shape": "torus", "color": [0.6, 0.2, 0.8, 1.0],
-                "roughness": 0.3, "metalness": 0.2,
+                "shape": "torus",
+                "color": [0.6, 0.2, 0.8, 1.0],
+                "roughness": 0.3,
+                "metalness": 0.2,
                 "description": "slightly metallic purple torus",
             },
             {
-                "shape": "cone", "color": [0.1, 0.9, 0.4, 1.0],
-                "roughness": 0.5, "metalness": 0.0,
+                "shape": "cone",
+                "color": [0.1, 0.9, 0.4, 1.0],
+                "roughness": 0.5,
+                "metalness": 0.0,
                 "description": "green cone",
             },
             {
-                "shape": "sphere", "color": [1.0, 0.8, 0.2, 1.0],
-                "roughness": 0.0, "metalness": 0.8,
+                "shape": "sphere",
+                "color": [1.0, 0.8, 0.2, 1.0],
+                "roughness": 0.0,
+                "metalness": 0.8,
                 "description": "gold metallic sphere",
             },
             {
-                "shape": "box", "color": [0.05, 0.05, 0.05, 1.0],
-                "roughness": 0.0, "metalness": 0.9,
+                "shape": "box",
+                "color": [0.05, 0.05, 0.05, 1.0],
+                "roughness": 0.0,
+                "metalness": 0.9,
                 "description": "black chrome cube",
             },
             {
-                "shape": "sphere", "color": [0.9, 0.95, 1.0, 1.0],
-                "roughness": 0.0, "metalness": 0.0,
+                "shape": "sphere",
+                "color": [0.9, 0.95, 1.0, 1.0],
+                "roughness": 0.0,
+                "metalness": 0.0,
                 "description": "glass-like white sphere",
                 "transmission": 0.9,
             },
@@ -691,7 +755,7 @@ class SplineScraper:
                 blender_python = f"""import bpy
 
 # Add shape
-{shape_to_blender.get(shape, 'bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))')}
+{shape_to_blender.get(shape, "bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))")}
 obj = bpy.context.active_object
 
 # Apply PBR material
@@ -712,7 +776,12 @@ obj.data.materials.append(mat)"""
                     "scene_context": "empty scene",
                     "blender_python": blender_python,
                     "universal_dsl": [
-                        {"op": dsl_op, "args": {"location": [0, 0, 0]}, "target": shape, "intent": f"Create {shape}"},
+                        {
+                            "op": dsl_op,
+                            "args": {"location": [0, 0, 0]},
+                            "target": shape,
+                            "intent": f"Create {shape}",
+                        },
                         {
                             "op": "SET_MATERIAL",
                             "args": {
@@ -744,11 +813,14 @@ obj.data.materials.append(mat)"""
                 f_out.write(json.dumps(pair) + "\n")
                 pairs_written += 1
 
-        log.info("Wrote %d synthetic Spline-style pairs → %s", pairs_written, output_file)
+        log.info(
+            "Wrote %d synthetic Spline-style pairs → %s", pairs_written, output_file
+        )
         return pairs_written
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -757,12 +829,17 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=1000, help="Max scenes to collect")
     parser.add_argument(
-        "--output", type=Path,
+        "--output",
+        type=Path,
         default=BASE_DIR / "data" / "integrations" / "spline",
         help="Output directory for JSONL files",
     )
-    parser.add_argument("--delay", type=float, default=DEFAULT_DELAY, help="Seconds between requests")
-    parser.add_argument("--resume", action="store_true", help="Resume from existing cache")
+    parser.add_argument(
+        "--delay", type=float, default=DEFAULT_DELAY, help="Seconds between requests"
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Resume from existing cache"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 
@@ -776,7 +853,9 @@ def main() -> None:
     )
 
     total = asyncio.run(scraper.scrape())
-    print(f"\nSpline scrape complete: {total} training pairs written to {args.output}/scenes.jsonl")
+    print(
+        f"\nSpline scrape complete: {total} training pairs written to {args.output}/scenes.jsonl"
+    )
 
 
 if __name__ == "__main__":

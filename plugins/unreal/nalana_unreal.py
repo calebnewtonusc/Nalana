@@ -12,17 +12,17 @@ Usage:
   nalana_unreal.show_nalana_dialog()
 """
 
-import sys
 import json
 import traceback
 import urllib.request
 import urllib.error
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 # Unreal Engine imports — available only inside the UE5 editor.
 try:
     import unreal
+
     _IN_UNREAL = True
 except ImportError:
     _IN_UNREAL = False
@@ -95,11 +95,13 @@ def get_unreal_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "unreal",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "unreal",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -138,7 +140,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"unreal_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "unreal_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def execute_code_safely(code: str) -> tuple:
@@ -146,7 +152,9 @@ def execute_code_safely(code: str) -> tuple:
     Execute Unreal Python code.
     Returns (success: bool, error_message: str).
     """
-    exec_globals = {"unreal": unreal, "__builtins__": __builtins__} if _IN_UNREAL else {}
+    exec_globals = (
+        {"unreal": unreal, "__builtins__": __builtins__} if _IN_UNREAL else {}
+    )
     try:
         exec(code, exec_globals)  # noqa: S102
         return True, ""
@@ -161,7 +169,7 @@ def send_command(command: str) -> tuple:
     response = None
     try:
         response = call_nalana_api(command, scene_ctx)
-    except Exception as api_err:
+    except Exception:
         try:
             response = call_claude_fallback(command, scene_ctx)
         except Exception as claude_err:
@@ -199,11 +207,15 @@ class NalanaDialog:
 
         ttk.Label(settings_frame, text="API URL:").grid(row=0, column=0, sticky="w")
         self.api_url_var = tk.StringVar(value=_CONFIG["api_url"])
-        ttk.Entry(settings_frame, textvariable=self.api_url_var, width=38).grid(row=0, column=1, padx=4)
+        ttk.Entry(settings_frame, textvariable=self.api_url_var, width=38).grid(
+            row=0, column=1, padx=4
+        )
 
         ttk.Label(settings_frame, text="API Key:").grid(row=1, column=0, sticky="w")
         self.api_key_var = tk.StringVar(value=_CONFIG["api_key"])
-        ttk.Entry(settings_frame, textvariable=self.api_key_var, width=38, show="*").grid(row=1, column=1, padx=4)
+        ttk.Entry(
+            settings_frame, textvariable=self.api_key_var, width=38, show="*"
+        ).grid(row=1, column=1, padx=4)
 
         # Command frame
         cmd_frame = ttk.LabelFrame(root, text="Command", padding=6)
@@ -216,21 +228,32 @@ class NalanaDialog:
 
         btn_frame = tk.Frame(cmd_frame)
         btn_frame.pack(fill="x", pady=4)
-        ttk.Button(btn_frame, text="Send to Nalana", command=self._on_send).pack(side="left", padx=2)
-        ttk.Button(btn_frame, text="Clear History", command=self._clear_history).pack(side="left", padx=2)
+        ttk.Button(btn_frame, text="Send to Nalana", command=self._on_send).pack(
+            side="left", padx=2
+        )
+        ttk.Button(btn_frame, text="Clear History", command=self._clear_history).pack(
+            side="left", padx=2
+        )
 
         # Status
         self.status_var = tk.StringVar(value="Ready.")
-        ttk.Label(root, textvariable=self.status_var, foreground="gray", font=("TkDefaultFont", 9, "italic")).pack(
-            anchor="w", padx=10
-        )
+        ttk.Label(
+            root,
+            textvariable=self.status_var,
+            foreground="gray",
+            font=("TkDefaultFont", 9, "italic"),
+        ).pack(anchor="w", padx=10)
 
         # History
-        history_frame = ttk.LabelFrame(root, text="Command History (last 10)", padding=6)
+        history_frame = ttk.LabelFrame(
+            root, text="Command History (last 10)", padding=6
+        )
         history_frame.pack(fill="both", expand=True, padx=8, pady=4)
 
         self.history_listbox = tk.Listbox(history_frame, height=10)
-        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.history_listbox.yview)
+        scrollbar = ttk.Scrollbar(
+            history_frame, orient="vertical", command=self.history_listbox.yview
+        )
         self.history_listbox.configure(yscrollcommand=scrollbar.set)
         self.history_listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -335,7 +358,9 @@ def show_nalana_dialog():
 
 if _IN_UNREAL:
     _register_toolbar()
-    print("[Nalana] Unreal Engine 5 plugin loaded. Call nalana_unreal.show_nalana_dialog() to open.")
+    print(
+        "[Nalana] Unreal Engine 5 plugin loaded. Call nalana_unreal.show_nalana_dialog() to open."
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ try:
     import substance_painter.project
     import substance_painter.textureset
     import substance_painter.logging as sp_log
+
     _IN_SP = True
 except ImportError:
     _IN_SP = False
@@ -29,10 +30,12 @@ except ImportError:
 # PySide2 — ships with Substance Painter.
 try:
     from PySide2 import QtWidgets, QtCore, QtGui
+
     _HAS_PYSIDE = True
 except ImportError:
     try:
         from PySide6 import QtWidgets, QtCore, QtGui  # type: ignore
+
         _HAS_PYSIDE = True
     except ImportError:
         _HAS_PYSIDE = False
@@ -119,11 +122,13 @@ def get_substance_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "substance",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "substance",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -162,7 +167,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"substance_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "substance_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def execute_code_safely(code: str) -> tuple:
@@ -187,7 +196,7 @@ def send_command(command: str) -> tuple:
     response = None
     try:
         response = call_nalana_api(command, scene_ctx)
-    except Exception as api_err:
+    except Exception:
         try:
             response = call_claude_fallback(command, scene_ctx)
         except Exception as claude_err:
@@ -234,7 +243,9 @@ if _HAS_PYSIDE:
             cmd_group = QtWidgets.QGroupBox("Command")
             cmd_layout = QtWidgets.QVBoxLayout()
             self.command_edit = QtWidgets.QLineEdit()
-            self.command_edit.setPlaceholderText("Describe a Substance Painter operation…")
+            self.command_edit.setPlaceholderText(
+                "Describe a Substance Painter operation…"
+            )
             self.command_edit.returnPressed.connect(self._on_send)
             cmd_layout.addWidget(self.command_edit)
 
@@ -304,8 +315,10 @@ if _HAS_PYSIDE:
             self.status_label.setText("History cleared.")
 
 else:
+
     class NalanaPanel:  # noqa: F811
         """Stub when PySide2 is not available."""
+
         pass
 
 
@@ -322,7 +335,9 @@ def start_plugin():
     global _dock_widget, _panel_widget
 
     if not _HAS_PYSIDE or not _IN_SP:
-        print("[Nalana] PySide2 or Substance Painter not available — plugin not started.")
+        print(
+            "[Nalana] PySide2 or Substance Painter not available — plugin not started."
+        )
         return
 
     _panel_widget = NalanaPanel()

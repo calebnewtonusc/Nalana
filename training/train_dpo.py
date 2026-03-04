@@ -48,9 +48,7 @@ import argparse
 import json
 import logging
 import math
-import os
 import random
-import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -67,18 +65,21 @@ from transformers import (
 
 try:
     from trl import DPOConfig, DPOTrainer
+
     HAS_TRL_DPO = True
 except ImportError:
     HAS_TRL_DPO = False
 
 try:
     import wandb
+
     HAS_WANDB = True
 except ImportError:
     HAS_WANDB = False
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
@@ -94,6 +95,7 @@ ROOT = Path(__file__).parents[1]
 
 
 # ─── DPO Dataset ──────────────────────────────────────────────────────────────
+
 
 class DPODataset:
     """
@@ -112,9 +114,9 @@ class DPODataset:
     # Source file locations relative to the data directory (args.data_dir)
     SOURCE_FILES = {
         "execution": "execution_pairs.jsonl",
-        "dream3d":   "dream3d_pairs.jsonl",
+        "dream3d": "dream3d_pairs.jsonl",
         "synthetic": "synthetic_conv_pairs.jsonl",
-        "physics":   "physics_reasoning_pairs.jsonl",
+        "physics": "physics_reasoning_pairs.jsonl",
     }
 
     def __init__(
@@ -126,7 +128,7 @@ class DPODataset:
         val_split: float = 0.05,
         seed: int = 42,
     ):
-        self.root    = root
+        self.root = root
         self.sources = sources
         self.weights = source_weights or {}
         self.val_split = val_split
@@ -145,7 +147,7 @@ class DPODataset:
         path = self.root / rel_path
         if not path.exists():
             log.warning(f"DPO source not found: {path} (source={source})")
-            log.warning(f"  Run generate_dpo_pairs.py to create this file.")
+            log.warning("  Run generate_dpo_pairs.py to create this file.")
             return []
 
         pairs = []
@@ -191,8 +193,8 @@ class DPODataset:
     def _pair_to_hf(self, pair: dict) -> dict:
         """Convert to the format expected by TRL DPOTrainer."""
         return {
-            "prompt":   pair["prompt"],
-            "chosen":   pair["chosen"],
+            "prompt": pair["prompt"],
+            "chosen": pair["chosen"],
             "rejected": pair["rejected"],
         }
 
@@ -203,11 +205,11 @@ class DPODataset:
             return empty, empty
 
         n_val = max(1, int(len(self.all_pairs) * self.val_split))
-        val_pairs   = self.all_pairs[:n_val]
+        val_pairs = self.all_pairs[:n_val]
         train_pairs = self.all_pairs[n_val:]
 
         train_records = [self._pair_to_hf(p) for p in train_pairs]
-        val_records   = [self._pair_to_hf(p) for p in val_pairs]
+        val_records = [self._pair_to_hf(p) for p in val_pairs]
 
         return Dataset.from_list(train_records), Dataset.from_list(val_records)
 
@@ -221,6 +223,7 @@ class DPODataset:
 
 
 # ─── Callbacks ────────────────────────────────────────────────────────────────
+
 
 class DPOMetricsCallback(TrainerCallback):
     """
@@ -241,13 +244,13 @@ class DPOMetricsCallback(TrainerCallback):
 
         step = state.global_step
         loss = logs.get("loss", None)
-        lr   = logs.get("learning_rate", None)
+        lr = logs.get("learning_rate", None)
 
         # DPO-specific metrics
-        reward_chosen   = logs.get("rewards/chosen", None)
-        reward_rejected = logs.get("rewards/rejected", None)
-        reward_margin   = logs.get("rewards/margins", None)
-        reward_acc      = logs.get("rewards/accuracies", None)
+        logs.get("rewards/chosen", None)
+        logs.get("rewards/rejected", None)
+        reward_margin = logs.get("rewards/margins", None)
+        reward_acc = logs.get("rewards/accuracies", None)
 
         parts = [f"step {step:>5}"]
         if loss is not None:
@@ -271,7 +274,9 @@ class PerSourceEvalCallback(TrainerCallback):
     Useful for debugging which source is driving improvement.
     """
 
-    def __init__(self, source_datasets: dict[str, Dataset], tokenizer, no_wandb: bool = False):
+    def __init__(
+        self, source_datasets: dict[str, Dataset], tokenizer, no_wandb: bool = False
+    ):
         self.source_datasets = source_datasets
         self.tokenizer = tokenizer
         self.no_wandb = no_wandb
@@ -292,6 +297,7 @@ class PerSourceEvalCallback(TrainerCallback):
 
 
 # ─── Evaluation ───────────────────────────────────────────────────────────────
+
 
 @torch.no_grad()
 def evaluate_execution_rate(
@@ -314,9 +320,16 @@ def evaluate_execution_rate(
 
     # Import reward function from train_rl.py
     try:
-        from training.train_rl import NalanaRewardFunction, generate_completions, extract_blender_code, build_prompt_text
+        from training.train_rl import (
+            NalanaRewardFunction,
+            generate_completions,
+            extract_blender_code,
+            build_prompt_text,
+        )
     except ImportError:
-        log.warning("Could not import train_rl.py for eval — skipping execution rate eval")
+        log.warning(
+            "Could not import train_rl.py for eval — skipping execution rate eval"
+        )
         return {}
 
     reward_fn = NalanaRewardFunction(blender_path=blender_path, timeout=30, workers=4)
@@ -328,8 +341,13 @@ def evaluate_execution_rate(
     for prompt_data in sample:
         prompt_text = build_prompt_text(prompt_data, tokenizer)
         completions = generate_completions(
-            model, tokenizer, prompt_text, n=1,
-            max_new_tokens=max_new_tokens, temperature=0.3, device=device
+            model,
+            tokenizer,
+            prompt_text,
+            n=1,
+            max_new_tokens=max_new_tokens,
+            temperature=0.3,
+            device=device,
         )
         if completions:
             code = extract_blender_code(completions[0])
@@ -340,66 +358,115 @@ def evaluate_execution_rate(
         return {}
 
     return {
-        "eval/execution_rate":    sum(1 for s in all_scores if s > 0.0) / len(all_scores),
-        "eval/scene_change_rate": sum(1 for s in all_scores if s == 1.0) / len(all_scores),
-        "eval/mean_reward":       sum(all_scores) / len(all_scores),
+        "eval/execution_rate": sum(1 for s in all_scores if s > 0.0) / len(all_scores),
+        "eval/scene_change_rate": sum(1 for s in all_scores if s == 1.0)
+        / len(all_scores),
+        "eval/mean_reward": sum(all_scores) / len(all_scores),
     }
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Stage 3: DPO training for Nalana conversation quality")
+    parser = argparse.ArgumentParser(
+        description="Stage 3: DPO training for Nalana conversation quality"
+    )
 
     # Model args
-    parser.add_argument("--base-model", required=True,
-                        help="Path to RL checkpoint (from train_rl.py), or SFT checkpoint")
-    parser.add_argument("--ref-model", default=None,
-                        help="Reference model for DPO KL penalty (defaults to --base-model)")
+    parser.add_argument(
+        "--base-model",
+        required=True,
+        help="Path to RL checkpoint (from train_rl.py), or SFT checkpoint",
+    )
+    parser.add_argument(
+        "--ref-model",
+        default=None,
+        help="Reference model for DPO KL penalty (defaults to --base-model)",
+    )
     parser.add_argument("--output-dir", default="checkpoints/nalana-dpo")
     parser.add_argument("--deepspeed", type=str, help="Path to DeepSpeed config JSON")
     parser.add_argument("--flash-attn", action="store_true", default=False)
     parser.add_argument("--lora-r", type=int, default=32)
 
     # Data args
-    parser.add_argument("--data-dir", default="data/dpo",
-                        help="Directory containing DPO pair files")
-    parser.add_argument("--data-sources", nargs="+",
-                        default=["execution", "dream3d", "synthetic", "physics"],
-                        choices=["execution", "dream3d", "synthetic", "physics"],
-                        help="Which DPO data sources to include")
-    parser.add_argument("--data-weights", nargs="+", type=float, default=None,
-                        help="Per-source loss weights (same order as --data-sources)")
-    parser.add_argument("--max-pairs", type=int, default=None,
-                        help="Cap total number of DPO pairs")
+    parser.add_argument(
+        "--data-dir", default="data/dpo", help="Directory containing DPO pair files"
+    )
+    parser.add_argument(
+        "--data-sources",
+        nargs="+",
+        default=["execution", "dream3d", "synthetic", "physics"],
+        choices=["execution", "dream3d", "synthetic", "physics"],
+        help="Which DPO data sources to include",
+    )
+    parser.add_argument(
+        "--data-weights",
+        nargs="+",
+        type=float,
+        default=None,
+        help="Per-source loss weights (same order as --data-sources)",
+    )
+    parser.add_argument(
+        "--max-pairs", type=int, default=None, help="Cap total number of DPO pairs"
+    )
     parser.add_argument("--val-split", type=float, default=0.05)
 
     # DPO hyperparams
-    parser.add_argument("--beta", type=float, default=0.1,
-                        help="KL divergence strength. Higher = stay closer to reference. "
-                             "0.1 is a good default. Lower (0.01) = more aggressive updates.")
-    parser.add_argument("--loss-type", default="sigmoid",
-                        choices=["sigmoid", "hinge", "ipo", "kto_pair"],
-                        help="DPO loss variant. sigmoid = standard, ipo = conservative.")
-    parser.add_argument("--label-smoothing", type=float, default=0.0,
-                        help="Label smoothing for DPO loss (0.0-0.5)")
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=0.1,
+        help="KL divergence strength. Higher = stay closer to reference. "
+        "0.1 is a good default. Lower (0.01) = more aggressive updates.",
+    )
+    parser.add_argument(
+        "--loss-type",
+        default="sigmoid",
+        choices=["sigmoid", "hinge", "ipo", "kto_pair"],
+        help="DPO loss variant. sigmoid = standard, ipo = conservative.",
+    )
+    parser.add_argument(
+        "--label-smoothing",
+        type=float,
+        default=0.0,
+        help="Label smoothing for DPO loss (0.0-0.5)",
+    )
     parser.add_argument("--max-steps", type=int, default=1000)
-    parser.add_argument("--batch-size", type=int, default=2,
-                        help="Per-device batch size (DPO processes pairs, so effective is 2x)")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=2,
+        help="Per-device batch size (DPO processes pairs, so effective is 2x)",
+    )
     parser.add_argument("--grad-accum", type=int, default=8)
-    parser.add_argument("--learning-rate", type=float, default=5e-7,
-                        help="DPO learning rate (very conservative — we're fine-tuning conversational style)")
-    parser.add_argument("--max-length", type=int, default=2048,
-                        help="Max sequence length for prompt + chosen/rejected")
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=5e-7,
+        help="DPO learning rate (very conservative — we're fine-tuning conversational style)",
+    )
+    parser.add_argument(
+        "--max-length",
+        type=int,
+        default=2048,
+        help="Max sequence length for prompt + chosen/rejected",
+    )
     parser.add_argument("--max-prompt-length", type=int, default=1024)
 
     # Eval args
     parser.add_argument("--eval-steps", type=int, default=100)
-    parser.add_argument("--eval-execution", action="store_true",
-                        help="Run Blender execution eval on held-out set")
+    parser.add_argument(
+        "--eval-execution",
+        action="store_true",
+        help="Run Blender execution eval on held-out set",
+    )
     parser.add_argument("--blender-path", type=str, default=None)
-    parser.add_argument("--sft-data-dir", default="data/train",
-                        help="SFT data dir (for execution rate eval prompts)")
+    parser.add_argument(
+        "--sft-data-dir",
+        default="data/train",
+        help="SFT data dir (for execution rate eval prompts)",
+    )
 
     # Checkpoint args
     parser.add_argument("--save-steps", type=int, default=200)
@@ -447,9 +514,14 @@ def main():
     sft_adapter_config = _Path(args.base_model) / "adapter_config.json"
     if sft_adapter_config.exists():
         import json as _json
+
         adapter_cfg = _json.loads(sft_adapter_config.read_text())
-        base_name = adapter_cfg.get("base_model_name_or_path", "Qwen/Qwen2.5-Coder-7B-Instruct")
-        base = AutoModelForCausalLM.from_pretrained(base_name, torch_dtype=torch.bfloat16, device_map=None)
+        base_name = adapter_cfg.get(
+            "base_model_name_or_path", "Qwen/Qwen2.5-Coder-7B-Instruct"
+        )
+        base = AutoModelForCausalLM.from_pretrained(
+            base_name, torch_dtype=torch.bfloat16, device_map=None
+        )
         model = PeftModel.from_pretrained(base, args.base_model)
     else:
         model = AutoModelForCausalLM.from_pretrained(
@@ -462,8 +534,15 @@ def main():
         task_type=TaskType.CAUSAL_LM,
         r=args.lora_r,
         lora_alpha=args.lora_r * 2,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                         "gate_proj", "up_proj", "down_proj"],
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],
         lora_dropout=0.05,
         bias="none",
     )
@@ -495,10 +574,10 @@ def main():
     else:
         # Defaults: execution pairs are most reliable, so weight higher
         source_weights = {
-            "execution": 1.5,   # Hard execution signal — very reliable
-            "dream3d":   1.2,   # Expert 3D knowledge pairs
-            "synthetic": 0.8,   # Synthetic conv pairs (lower confidence)
-            "physics":   1.0,   # Physics reasoning pairs
+            "execution": 1.5,  # Hard execution signal — very reliable
+            "dream3d": 1.2,  # Expert 3D knowledge pairs
+            "synthetic": 0.8,  # Synthetic conv pairs (lower confidence)
+            "physics": 1.0,  # Physics reasoning pairs
         }
 
     dpo_data = DPODataset(
@@ -510,7 +589,7 @@ def main():
     )
 
     source_stats = dpo_data.source_stats()
-    log.info(f"\nDPO data breakdown:")
+    log.info("\nDPO data breakdown:")
     for src, count in source_stats.items():
         weight = source_weights.get(src, 1.0)
         log.info(f"  {src:20s}: {count:,} pairs (weight={weight})")
@@ -537,7 +616,7 @@ def main():
     steps_per_epoch = math.ceil(len(train_dataset) / effective_batch)
     total_steps = min(args.max_steps, steps_per_epoch * 3)  # max 3 epochs
 
-    log.info(f"\nTraining config:")
+    log.info("\nTraining config:")
     log.info(f"  GPUs: {n_gpus}")
     log.info(f"  Effective batch size: {effective_batch}")
     log.info(f"  Steps: {total_steps:,}")
@@ -547,6 +626,7 @@ def main():
     # Use DPOConfig (TRL >= 0.12) or fall back to TrainingArguments
     try:
         from trl import DPOConfig as _DPOConfig
+
         training_args = _DPOConfig(
             output_dir=str(output_dir),
             max_steps=total_steps,
@@ -682,11 +762,15 @@ def main():
     if HAS_WANDB and not args.no_wandb:
         wandb.finish()
 
-    log.info(f"\nDPO training complete.")
+    log.info("\nDPO training complete.")
     log.info(f"  Final model: {final_dir}")
-    log.info(f"\nSelf-improvement loop:")
-    log.info(f"  python generate_dpo_pairs.py --model {final_dir} --output-dir data/dpo/round2")
-    log.info(f"  python train_dpo.py --base-model {final_dir} --data-dir data/dpo/round2")
+    log.info("\nSelf-improvement loop:")
+    log.info(
+        f"  python generate_dpo_pairs.py --model {final_dir} --output-dir data/dpo/round2"
+    )
+    log.info(
+        f"  python train_dpo.py --base-model {final_dir} --data-dir data/dpo/round2"
+    )
 
 
 if __name__ == "__main__":

@@ -61,19 +61,20 @@ import sys
 import random
 import time
 from pathlib import Path
-from typing import Optional
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
 try:
     import anthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
@@ -89,7 +90,7 @@ ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
 
 # Ranking weights
-EXEC_WEIGHT      = 0.7
+EXEC_WEIGHT = 0.7
 REASONING_WEIGHT = 0.3
 
 # ─── Reasoning quality heuristics ────────────────────────────────────────────
@@ -97,30 +98,75 @@ REASONING_WEIGHT = 0.3
 # Keywords that indicate design/physics reasoning in a response
 REASONING_KEYWORDS = {
     # Physics / material
-    "ior", "index of refraction", "roughness", "metallic", "subsurface",
-    "scattering", "fresnel", "pbr", "physically based",
+    "ior",
+    "index of refraction",
+    "roughness",
+    "metallic",
+    "subsurface",
+    "scattering",
+    "fresnel",
+    "pbr",
+    "physically based",
     # Topology
-    "topology", "edge loop", "edge flow", "pole", "ngon", "subdivision",
-    "quad", "triangulate", "manifold", "non-manifold",
+    "topology",
+    "edge loop",
+    "edge flow",
+    "pole",
+    "ngon",
+    "subdivision",
+    "quad",
+    "triangulate",
+    "manifold",
+    "non-manifold",
     # Form language
-    "primary shape", "secondary shape", "silhouette", "form language",
-    "chamfer", "bevel", "fillet", "radius",
+    "primary shape",
+    "secondary shape",
+    "silhouette",
+    "form language",
+    "chamfer",
+    "bevel",
+    "fillet",
+    "radius",
     # Lighting
-    "three-point", "hdri", "area light", "rim light", "fill light",
-    "key light", "cinematic", "exposure", "color temperature",
+    "three-point",
+    "hdri",
+    "area light",
+    "rim light",
+    "fill light",
+    "key light",
+    "cinematic",
+    "exposure",
+    "color temperature",
     # Workflow reasoning
-    "because", "this will", "the reason", "in order to", "which means",
-    "note that", "be aware", "alternatively", "consider",
+    "because",
+    "this will",
+    "the reason",
+    "in order to",
+    "which means",
+    "note that",
+    "be aware",
+    "alternatively",
+    "consider",
 }
 
 QUESTION_INDICATORS = {
-    "?", "could you clarify", "what style", "how many", "what size",
-    "would you like", "do you want", "can you specify", "what do you mean",
+    "?",
+    "could you clarify",
+    "what style",
+    "how many",
+    "what size",
+    "would you like",
+    "do you want",
+    "can you specify",
+    "what do you mean",
 }
 
 VAGUE_QUESTION_PENALTY_PHRASES = {
-    "what exactly", "can you be more specific", "i need more information",
-    "could you elaborate", "what do you mean by",
+    "what exactly",
+    "can you be more specific",
+    "i need more information",
+    "could you elaborate",
+    "what do you mean by",
 }
 
 
@@ -150,13 +196,13 @@ def score_reasoning(text: str) -> float:
     # Check for exactly one clarifying question (good behavior)
     question_count = text.count("?")
     if question_count == 1:
-        score += 0.2   # One focused question = ideal
+        score += 0.2  # One focused question = ideal
     elif question_count == 0:
         score += 0.05  # No question = just executes (acceptable)
     elif question_count == 2:
         score += 0.05  # Two questions = slightly verbose
     else:
-        score -= 0.1   # Many questions = bad UX (interrogating the user)
+        score -= 0.1  # Many questions = bad UX (interrogating the user)
 
     # Code presence (good — we want code)
     if "bpy." in text or "import bpy" in text:
@@ -164,14 +210,16 @@ def score_reasoning(text: str) -> float:
 
     # Has explanation around the code (not just raw code)
     has_text_around_code = (
-        "```" in text and
-        len(text.split("```")[0].strip()) > 20  # text before code block
+        "```" in text
+        and len(text.split("```")[0].strip()) > 20  # text before code block
     )
     if has_text_around_code:
         score += 0.1
 
     # Penalize vague questions
-    vague_count = sum(1 for phrase in VAGUE_QUESTION_PENALTY_PHRASES if phrase in text_lower)
+    vague_count = sum(
+        1 for phrase in VAGUE_QUESTION_PENALTY_PHRASES if phrase in text_lower
+    )
     score -= vague_count * 0.05
 
     # Penalize very short responses (likely truncated or unhelpful)
@@ -284,10 +332,12 @@ def generate_conversation_pairs(
                 model="claude-sonnet-4-6",
                 max_tokens=1024,
                 system=CONVERSATION_PAIRS_SYSTEM,
-                messages=[{
-                    "role": "user",
-                    "content": f"Generate a DPO pair for this Blender request:\n\"{prompt_text}\""
-                }],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f'Generate a DPO pair for this Blender request:\n"{prompt_text}"',
+                    }
+                ],
             )
 
             content = msg.content[0].text.strip()
@@ -356,10 +406,7 @@ PHYSICS_PAIRS = [
             "Enable Cycles with GPU for accurate caustics."
         ),
         "rejected": (
-            "Here's the glass material:\n"
-            "```python\n"
-            "bpy.ops.material.new()\n"
-            "```"
+            "Here's the glass material:\n```python\nbpy.ops.material.new()\n```"
         ),
         "source": "physics",
         "rejection_type": "code_dump",
@@ -421,6 +468,7 @@ PHYSICS_PAIRS = [
 
 # ─── Execution-based pair generation ─────────────────────────────────────────
 
+
 @torch.no_grad()
 def generate_execution_pairs(
     model,
@@ -454,7 +502,11 @@ def generate_execution_pairs(
     MIN_GAP = 0.2  # Minimum score difference to create a pair
     pairs = []
 
-    pbar = tqdm(total=len(prompts), desc="Generating execution pairs") if HAS_TQDM else None
+    pbar = (
+        tqdm(total=len(prompts), desc="Generating execution pairs")
+        if HAS_TQDM
+        else None
+    )
 
     for i, prompt_data in enumerate(prompts):
         if i < resume_offset:
@@ -467,7 +519,9 @@ def generate_execution_pairs(
         # Generate N candidates
         try:
             completions = gen_completions(
-                model, tokenizer, prompt_text,
+                model,
+                tokenizer,
+                prompt_text,
                 n=n_candidates,
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
@@ -504,20 +558,19 @@ def generate_execution_pairs(
 
         # The human turn from the conversation is the prompt
         human_turns = [
-            c for c in prompt_data.get("conversations", [])
-            if c.get("from") == "human"
+            c for c in prompt_data.get("conversations", []) if c.get("from") == "human"
         ]
         prompt_str = human_turns[0]["value"] if human_turns else prompt_text
 
         pair = {
-            "prompt":       prompt_str,
-            "chosen":       completions[best_idx],
-            "rejected":     completions[worst_idx],
-            "source":       "execution",
+            "prompt": prompt_str,
+            "chosen": completions[best_idx],
+            "rejected": completions[worst_idx],
+            "source": "execution",
             "chosen_score": best_score,
             "rejected_score": worst_score,
-            "score_gap":    best_score - worst_score,
-            "exec_scores":  exec_scores,
+            "score_gap": best_score - worst_score,
+            "exec_scores": exec_scores,
         }
 
         pairs.append(pair)
@@ -530,7 +583,7 @@ def generate_execution_pairs(
             pbar.update(1)
             pbar.set_postfix(
                 pairs=len(pairs),
-                avg_gap=f"{sum(p['score_gap'] for p in pairs)/len(pairs):.2f}"
+                avg_gap=f"{sum(p['score_gap'] for p in pairs) / len(pairs):.2f}",
             )
 
     if pbar:
@@ -541,32 +594,55 @@ def generate_execution_pairs(
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate DPO preference pairs for Nalana self-improvement loop"
     )
 
     # Model
-    parser.add_argument("--model", required=True,
-                        help="Path to current Nalana model (RL or DPO checkpoint)")
+    parser.add_argument(
+        "--model",
+        required=True,
+        help="Path to current Nalana model (RL or DPO checkpoint)",
+    )
     parser.add_argument("--flash-attn", action="store_true", default=False)
 
     # Data
-    parser.add_argument("--sft-data-dir", default="data/train",
-                        help="SFT training data dir (source of prompts)")
-    parser.add_argument("--n-prompts", type=int, default=1000,
-                        help="Number of prompts to generate pairs for")
-    parser.add_argument("--output-dir", default="data/dpo",
-                        help="Output directory for DPO pair files")
-    parser.add_argument("--resume", action="store_true",
-                        help="Resume an interrupted run (append to existing files)")
+    parser.add_argument(
+        "--sft-data-dir",
+        default="data/train",
+        help="SFT training data dir (source of prompts)",
+    )
+    parser.add_argument(
+        "--n-prompts",
+        type=int,
+        default=1000,
+        help="Number of prompts to generate pairs for",
+    )
+    parser.add_argument(
+        "--output-dir", default="data/dpo", help="Output directory for DPO pair files"
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume an interrupted run (append to existing files)",
+    )
 
     # Generation
-    parser.add_argument("--n-candidates", type=int, default=4,
-                        help="Number of candidates to generate per prompt")
+    parser.add_argument(
+        "--n-candidates",
+        type=int,
+        default=4,
+        help="Number of candidates to generate per prompt",
+    )
     parser.add_argument("--max-new-tokens", type=int, default=512)
-    parser.add_argument("--temperature", type=float, default=1.0,
-                        help="Generation temperature (1.0 = diverse, needed for good pairs)")
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Generation temperature (1.0 = diverse, needed for good pairs)",
+    )
 
     # Blender
     parser.add_argument("--blender-path", type=str, default=None)
@@ -574,15 +650,25 @@ def main():
     parser.add_argument("--blender-timeout", type=int, default=30)
 
     # Conversation pair generation via Claude
-    parser.add_argument("--gen-conversation-pairs", action="store_true",
-                        help="Generate synthetic conversation quality pairs via Claude")
+    parser.add_argument(
+        "--gen-conversation-pairs",
+        action="store_true",
+        help="Generate synthetic conversation quality pairs via Claude",
+    )
     parser.add_argument("--n-conversation-pairs", type=int, default=200)
-    parser.add_argument("--anthropic-api-key", default=None,
-                        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)")
+    parser.add_argument(
+        "--anthropic-api-key",
+        default=None,
+        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)",
+    )
 
     # Physics pairs
-    parser.add_argument("--include-physics-pairs", action="store_true", default=True,
-                        help="Include the built-in physics reasoning pairs")
+    parser.add_argument(
+        "--include-physics-pairs",
+        action="store_true",
+        default=True,
+        help="Include the built-in physics reasoning pairs",
+    )
 
     # Misc
     parser.add_argument("--seed", type=int, default=42)
@@ -613,6 +699,7 @@ def main():
 
     # ── Reward function ───────────────────────────────────────────────────────
     import sys
+
     sys.path.insert(0, str(ROOT))
     from training.train_rl import NalanaRewardFunction, load_rl_prompts
 
@@ -664,13 +751,17 @@ def main():
                 "Set --anthropic-api-key or ANTHROPIC_API_KEY env var."
             )
         elif not HAS_ANTHROPIC:
-            log.warning("anthropic package not installed. Skipping. Run: pip install anthropic")
+            log.warning(
+                "anthropic package not installed. Skipping. Run: pip install anthropic"
+            )
         else:
             conv_output = output_dir / "synthetic_conv_pairs.jsonl"
             if not (args.resume and conv_output.exists()):
                 conv_output.write_text("")  # Clear if not resuming
 
-            log.info(f"\nGenerating conversation quality pairs via Claude ({args.n_conversation_pairs} pairs)...")
+            log.info(
+                f"\nGenerating conversation quality pairs via Claude ({args.n_conversation_pairs} pairs)..."
+            )
             conv_pairs = generate_conversation_pairs(
                 api_key=api_key,
                 n_pairs=args.n_conversation_pairs,
@@ -690,18 +781,18 @@ def main():
 
     # ── Summary ───────────────────────────────────────────────────────────────
     total = sum(stats.values())
-    log.info(f"\n{'='*50}")
-    log.info(f"DPO pair generation complete")
+    log.info(f"\n{'=' * 50}")
+    log.info("DPO pair generation complete")
     log.info(f"  Execution pairs:   {stats['execution']:,}")
     log.info(f"  Conv quality pairs:{stats['synthetic_conv']:,}")
     log.info(f"  Physics pairs:     {stats['physics']:,}")
     log.info(f"  Total:             {total:,}")
     log.info(f"  Output dir:        {output_dir}")
-    log.info(f"\nNext: train_dpo.py with fresh pairs:")
-    log.info(f"  python train_dpo.py \\")
+    log.info("\nNext: train_dpo.py with fresh pairs:")
+    log.info("  python train_dpo.py \\")
     log.info(f"    --base-model {args.model} \\")
     log.info(f"    --data-dir {output_dir} \\")
-    log.info(f"    --output-dir checkpoints/nalana-dpo-round2")
+    log.info("    --output-dir checkpoints/nalana-dpo-round2")
 
 
 if __name__ == "__main__":

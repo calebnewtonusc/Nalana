@@ -21,7 +21,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import tempfile
@@ -32,53 +31,53 @@ from pathlib import Path
 FORMATS = {
     # ext → (category, converter, notes)
     # ── Mesh / scene ──────────────────────────────────────────────
-    ".blend": ("blender_native", "blender",   "Blender native"),
-    ".fbx":   ("mesh",          "blender",    "Autodesk FBX - industry standard"),
-    ".obj":   ("mesh",          "trimesh",    "Wavefront OBJ"),
-    ".glb":   ("mesh",          "trimesh",    "Binary glTF 2.0"),
-    ".gltf":  ("mesh",          "trimesh",    "Text glTF 2.0"),
-    ".dae":   ("mesh",          "trimesh",    "COLLADA"),
-    ".stl":   ("mesh",          "trimesh",    "Stereolithography - 3D printing"),
-    ".ply":   ("mesh",          "trimesh",    "Stanford PLY"),
-    ".off":   ("mesh",          "trimesh",    "Object File Format"),
-    ".3mf":   ("mesh",          "blender",    "3D Manufacturing Format"),
-    ".x3d":   ("mesh",          "blender",    "Web3D X3D"),
-    ".wrl":   ("mesh",          "blender",    "VRML / Virtual Reality Modeling"),
-    ".abc":   ("scene",         "blender",    "Alembic - animation / VFX"),
-    ".usd":   ("scene",         "usd",        "Universal Scene Description (binary)"),
-    ".usda":  ("scene",         "usd",        "Universal Scene Description (ASCII)"),
-    ".usdc":  ("scene",         "usd",        "Universal Scene Description (crate)"),
-    ".usdz":  ("scene",         "usd",        "Universal Scene Description (zip) - Apple/iOS"),
-    ".svg":   ("vector",        "blender",    "SVG → extruded 3D curve"),
-    ".3ds":   ("mesh",          "blender",    "Legacy 3D Studio"),
-    ".lwo":   ("mesh",          "blender",    "LightWave Object"),
-    ".mdd":   ("animation",     "blender",    "Point cache animation"),
-    ".pc2":   ("animation",     "blender",    "Point cache 2"),
+    ".blend": ("blender_native", "blender", "Blender native"),
+    ".fbx": ("mesh", "blender", "Autodesk FBX - industry standard"),
+    ".obj": ("mesh", "trimesh", "Wavefront OBJ"),
+    ".glb": ("mesh", "trimesh", "Binary glTF 2.0"),
+    ".gltf": ("mesh", "trimesh", "Text glTF 2.0"),
+    ".dae": ("mesh", "trimesh", "COLLADA"),
+    ".stl": ("mesh", "trimesh", "Stereolithography - 3D printing"),
+    ".ply": ("mesh", "trimesh", "Stanford PLY"),
+    ".off": ("mesh", "trimesh", "Object File Format"),
+    ".3mf": ("mesh", "blender", "3D Manufacturing Format"),
+    ".x3d": ("mesh", "blender", "Web3D X3D"),
+    ".wrl": ("mesh", "blender", "VRML / Virtual Reality Modeling"),
+    ".abc": ("scene", "blender", "Alembic - animation / VFX"),
+    ".usd": ("scene", "usd", "Universal Scene Description (binary)"),
+    ".usda": ("scene", "usd", "Universal Scene Description (ASCII)"),
+    ".usdc": ("scene", "usd", "Universal Scene Description (crate)"),
+    ".usdz": ("scene", "usd", "Universal Scene Description (zip) - Apple/iOS"),
+    ".svg": ("vector", "blender", "SVG → extruded 3D curve"),
+    ".3ds": ("mesh", "blender", "Legacy 3D Studio"),
+    ".lwo": ("mesh", "blender", "LightWave Object"),
+    ".mdd": ("animation", "blender", "Point cache animation"),
+    ".pc2": ("animation", "blender", "Point cache 2"),
     # ── Rhino / CAD precision ─────────────────────────────────────
-    ".3dm":   ("nurbs",         "rhino3dm",   "Rhino 3D Model - NURBS precision"),
-    ".step":  ("cad",           "occ",        "STEP - neutral CAD exchange"),
-    ".stp":   ("cad",           "occ",        "STEP (alternate extension)"),
-    ".iges":  ("cad",           "occ",        "IGES - legacy CAD exchange"),
-    ".igs":   ("cad",           "occ",        "IGES (alternate extension)"),
-    ".brep":  ("cad",           "occ",        "Open CASCADE BRep"),
+    ".3dm": ("nurbs", "rhino3dm", "Rhino 3D Model - NURBS precision"),
+    ".step": ("cad", "occ", "STEP - neutral CAD exchange"),
+    ".stp": ("cad", "occ", "STEP (alternate extension)"),
+    ".iges": ("cad", "occ", "IGES - legacy CAD exchange"),
+    ".igs": ("cad", "occ", "IGES (alternate extension)"),
+    ".brep": ("cad", "occ", "Open CASCADE BRep"),
     # ── DXF / DWG ─────────────────────────────────────────────────
-    ".dxf":   ("cad_2d",        "ezdxf",      "AutoCAD DXF - 2D/3D"),
-    ".dwg":   ("cad_2d",        "ezdxf",      "AutoCAD DWG (via ezdxf)"),
+    ".dxf": ("cad_2d", "ezdxf", "AutoCAD DXF - 2D/3D"),
+    ".dwg": ("cad_2d", "ezdxf", "AutoCAD DWG (via ezdxf)"),
     # ── Point clouds ──────────────────────────────────────────────
-    ".e57":   ("pointcloud",    "open3d",     "3D point cloud exchange format"),
-    ".pcd":   ("pointcloud",    "open3d",     "Point Cloud Data"),
-    ".pts":   ("pointcloud",    "open3d",     "Point cloud text format"),
-    ".xyz":   ("pointcloud",    "open3d",     "Plain XYZ coordinates"),
-    ".las":   ("pointcloud",    "laspy",      "LiDAR point cloud"),
-    ".laz":   ("pointcloud",    "laspy",      "Compressed LiDAR"),
+    ".e57": ("pointcloud", "open3d", "3D point cloud exchange format"),
+    ".pcd": ("pointcloud", "open3d", "Point Cloud Data"),
+    ".pts": ("pointcloud", "open3d", "Point cloud text format"),
+    ".xyz": ("pointcloud", "open3d", "Plain XYZ coordinates"),
+    ".las": ("pointcloud", "laspy", "LiDAR point cloud"),
+    ".laz": ("pointcloud", "laspy", "Compressed LiDAR"),
     # ── Sketchup ──────────────────────────────────────────────────
-    ".skp":   ("sketchup",      "sketchup",   "SketchUp (via SketchUp Ruby/CLI)"),
+    ".skp": ("sketchup", "sketchup", "SketchUp (via SketchUp Ruby/CLI)"),
     # ── Substance ─────────────────────────────────────────────────
-    ".sbsar": ("material",      "substance",  "Substance parametric material"),
-    ".sbs":   ("material",      "substance",  "Substance designer graph"),
+    ".sbsar": ("material", "substance", "Substance parametric material"),
+    ".sbs": ("material", "substance", "Substance designer graph"),
     # ── Maya / 3ds Max / C4D (read-only via converters) ──────────
-    ".ma":    ("maya",          "blender",    "Maya ASCII (Blender importer)"),
-    ".mb":    ("maya",          "blender",    "Maya Binary"),
+    ".ma": ("maya", "blender", "Maya ASCII (Blender importer)"),
+    ".mb": ("maya", "blender", "Maya Binary"),
 }
 
 SUPPORTED_FORMATS = set(FORMATS.keys())
@@ -101,7 +100,7 @@ def get_format_info(path: str | Path) -> dict:
 
 # ─── Blender headless converter ────────────────────────────────────────────────
 
-BLENDER_CONVERT_SCRIPT = '''
+BLENDER_CONVERT_SCRIPT = """
 import bpy, sys, os
 from pathlib import Path
 
@@ -154,7 +153,7 @@ if meshes:
 Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=output_file, export_format="GLB")
 print(f"Exported GLB: {output_file}")
-'''
+"""
 
 
 def _blender_convert(input_path: Path, output_path: Path, blender: str) -> bool:
@@ -163,8 +162,18 @@ def _blender_convert(input_path: Path, output_path: Path, blender: str) -> bool:
         script = f.name
     try:
         r = subprocess.run(
-            [blender, "--background", "--python", script, "--", str(input_path), str(output_path)],
-            capture_output=True, text=True, timeout=120,
+            [
+                blender,
+                "--background",
+                "--python",
+                script,
+                "--",
+                str(input_path),
+                str(output_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         return r.returncode == 0 and output_path.exists()
     finally:
@@ -174,6 +183,7 @@ def _blender_convert(input_path: Path, output_path: Path, blender: str) -> bool:
 def _trimesh_convert(input_path: Path, output_path: Path) -> bool:
     try:
         import trimesh
+
         mesh = trimesh.load(str(input_path), force="mesh")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         mesh.export(str(output_path))
@@ -213,9 +223,13 @@ def _rhino3dm_convert(input_path: Path, output_path: Path) -> bool:
                     mesh = geo.GetMesh(rhino3dm.MeshType.Any)
                     if mesh:
                         verts = np.array([[v.X, v.Y, v.Z] for v in mesh.Vertices])
-                        faces = [[mesh.Faces[i].A, mesh.Faces[i].B, mesh.Faces[i].C]
-                                 for i in range(mesh.Faces.Count)]
-                        all_meshes.append(trimesh.Trimesh(vertices=verts, faces=np.array(faces)))
+                        faces = [
+                            [mesh.Faces[i].A, mesh.Faces[i].B, mesh.Faces[i].C]
+                            for i in range(mesh.Faces.Count)
+                        ]
+                        all_meshes.append(
+                            trimesh.Trimesh(vertices=verts, faces=np.array(faces))
+                        )
                 except Exception:
                     pass
 
@@ -234,7 +248,6 @@ def _rhino3dm_convert(input_path: Path, output_path: Path) -> bool:
 def _occ_convert(input_path: Path, output_path: Path) -> bool:
     """Convert STEP/IGES to GLB via Open CASCADE (pythonocc-core)."""
     try:
-        from OCC.Core.BRep import BRep_Builder
         from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
         from OCC.Extend.DataExchange import read_step_file, read_iges_file
         from OCC.Extend.TopologyUtils import TopologyExplorer
@@ -257,16 +270,25 @@ def _occ_convert(input_path: Path, output_path: Path) -> bool:
         for face in topo.faces():
             from OCC.Core.BRep import BRep_Tool
             from OCC.Core.TopLoc import TopLoc_Location
+
             location = TopLoc_Location()
             triangulation = BRep_Tool.Triangulation(face, location)
             if triangulation is None:
                 continue
             nodes = triangulation.Nodes()
             tris = triangulation.Triangles()
-            face_verts = np.array([[nodes.Value(i).X(), nodes.Value(i).Y(), nodes.Value(i).Z()]
-                                    for i in range(1, nodes.Length() + 1)])
-            face_faces = np.array([[tris.Value(i).Get()[j] - 1 + offset for j in range(3)]
-                                    for i in range(1, tris.Length() + 1)])
+            face_verts = np.array(
+                [
+                    [nodes.Value(i).X(), nodes.Value(i).Y(), nodes.Value(i).Z()]
+                    for i in range(1, nodes.Length() + 1)
+                ]
+            )
+            face_faces = np.array(
+                [
+                    [tris.Value(i).Get()[j] - 1 + offset for j in range(3)]
+                    for i in range(1, tris.Length() + 1)
+                ]
+            )
             verts_list.append(face_verts)
             faces_list.append(face_faces)
             offset += len(face_verts)
@@ -297,6 +319,7 @@ def _open3d_convert(input_path: Path, output_path: Path) -> bool:
         if ext in (".las", ".laz"):
             try:
                 import laspy
+
                 las = laspy.read(str(input_path))
                 pts = np.vstack([las.x, las.y, las.z]).T
                 pcd = o3d.geometry.PointCloud()
@@ -308,7 +331,9 @@ def _open3d_convert(input_path: Path, output_path: Path) -> bool:
 
         # Estimate normals and reconstruct surface (Poisson)
         pcd.estimate_normals()
-        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
+        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcd, depth=8
+        )
         tm = trimesh.Trimesh(
             vertices=np.asarray(mesh.vertices),
             faces=np.asarray(mesh.triangles),
@@ -327,8 +352,6 @@ def _ezdxf_convert(input_path: Path, output_path: Path) -> bool:
         import ezdxf
         import trimesh
         import numpy as np
-        from ezdxf.addons.drawing import Frontend, RenderContext
-        from ezdxf.document import Drawing
 
         doc = ezdxf.readfile(str(input_path))
         msp = doc.modelspace()
@@ -337,7 +360,12 @@ def _ezdxf_convert(input_path: Path, output_path: Path) -> bool:
         for entity in msp.query("3DFACE MESH POLYFACE"):
             try:
                 if entity.dxftype() == "3DFACE":
-                    pts = [entity.dxf.vtx0, entity.dxf.vtx1, entity.dxf.vtx2, entity.dxf.vtx3]
+                    pts = [
+                        entity.dxf.vtx0,
+                        entity.dxf.vtx1,
+                        entity.dxf.vtx2,
+                        entity.dxf.vtx3,
+                    ]
                     v = np.array([[p.x, p.y, p.z] for p in pts])
                     faces = np.array([[0, 1, 2], [0, 2, 3]])
                     all_meshes.append(trimesh.Trimesh(vertices=v, faces=faces))
@@ -378,13 +406,15 @@ def _usd_convert(input_path: Path, output_path: Path) -> bool:
                 # Build triangle faces
                 faces = []
                 idx = 0
-                for count in (counts_attr or [3] * (len(idx_attr) // 3)):
+                for count in counts_attr or [3] * (len(idx_attr) // 3):
                     poly = [idx_attr[idx + i] for i in range(count)]
                     for i in range(1, count - 1):
-                        faces.append([poly[0], poly[i], poly[i+1]])
+                        faces.append([poly[0], poly[i], poly[i + 1]])
                     idx += count
                 if len(verts) and len(faces):
-                    all_meshes.append(trimesh.Trimesh(vertices=verts, faces=np.array(faces)))
+                    all_meshes.append(
+                        trimesh.Trimesh(vertices=verts, faces=np.array(faces))
+                    )
 
         if not all_meshes:
             return False
@@ -399,6 +429,7 @@ def _usd_convert(input_path: Path, output_path: Path) -> bool:
 
 
 # ─── Main public API ───────────────────────────────────────────────────────────
+
 
 def to_glb(
     input_path: str | Path,
@@ -458,11 +489,11 @@ def batch_convert(
 ) -> dict[str, Path | None]:
     """Convert many files in parallel. Returns {input_path: glb_path_or_None}."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
+
     results = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
-            pool.submit(to_glb, p, output_dir, blender_path): p
-            for p in input_paths
+            pool.submit(to_glb, p, output_dir, blender_path): p for p in input_paths
         }
         for f in as_completed(futures):
             src = futures[f]
@@ -472,10 +503,12 @@ def batch_convert(
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: python file_formats.py <input_file> [output_dir]")
         print(f"\nSupported formats ({len(SUPPORTED_FORMATS)}):")
         from collections import defaultdict
+
         by_cat = defaultdict(list)
         for ext, (cat, conv, note) in FORMATS.items():
             by_cat[cat].append(f"{ext} ({note})")

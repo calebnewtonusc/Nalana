@@ -35,19 +35,25 @@ SE_FILTER = "withbody"
 
 # ─── bpy code detection patterns ─────────────────────────────────────────────
 BPY_PATTERNS = [
-    re.compile(r'import bpy', re.IGNORECASE),
-    re.compile(r'bpy\.(ops|data|context|types|utils|props)', re.IGNORECASE),
-    re.compile(r'bpy\.ops\.\w+', re.IGNORECASE),
-    re.compile(r'bpy\.data\.\w+', re.IGNORECASE),
+    re.compile(r"import bpy", re.IGNORECASE),
+    re.compile(r"bpy\.(ops|data|context|types|utils|props)", re.IGNORECASE),
+    re.compile(r"bpy\.ops\.\w+", re.IGNORECASE),
+    re.compile(r"bpy\.data\.\w+", re.IGNORECASE),
 ]
 
 # ─── HTML tag removal ─────────────────────────────────────────────────────────
-TAG_PATTERN = re.compile(r'<[^>]+>')
-CODE_BLOCK_PATTERN = re.compile(r'<code>(.*?)</code>', re.DOTALL | re.IGNORECASE)
-PRE_BLOCK_PATTERN = re.compile(r'<pre[^>]*>(.*?)</pre>', re.DOTALL | re.IGNORECASE)
+TAG_PATTERN = re.compile(r"<[^>]+>")
+CODE_BLOCK_PATTERN = re.compile(r"<code>(.*?)</code>", re.DOTALL | re.IGNORECASE)
+PRE_BLOCK_PATTERN = re.compile(r"<pre[^>]*>(.*?)</pre>", re.DOTALL | re.IGNORECASE)
 HTML_ENTITIES = {
-    '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
-    '&#39;': "'", '&nbsp;': ' ', '&#xA;': '\n', '&#10;': '\n',
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&nbsp;": " ",
+    "&#xA;": "\n",
+    "&#10;": "\n",
 }
 
 
@@ -55,7 +61,7 @@ def decode_html(html: str) -> str:
     """Strip HTML tags and decode entities."""
     for entity, char in HTML_ENTITIES.items():
         html = html.replace(entity, char)
-    return TAG_PATTERN.sub('', html).strip()
+    return TAG_PATTERN.sub("", html).strip()
 
 
 def extract_code_blocks(html: str) -> list[str]:
@@ -99,23 +105,29 @@ def se_get(endpoint: str, params: dict) -> dict:
 
 def fetch_questions_page(page: int, page_size: int = 100) -> dict:
     """Fetch a page of accepted-answer questions from Blender.SE."""
-    return se_get("questions", {
-        "site": "blender",
-        "page": page,
-        "pagesize": page_size,
-        "order": "desc",
-        "sort": "votes",
-        "filter": SE_FILTER,
-        "accepted": "True",
-    })
+    return se_get(
+        "questions",
+        {
+            "site": "blender",
+            "page": page,
+            "pagesize": page_size,
+            "order": "desc",
+            "sort": "votes",
+            "filter": SE_FILTER,
+            "accepted": "True",
+        },
+    )
 
 
 def fetch_answer(answer_id: int) -> dict:
     """Fetch a single answer with full body."""
-    data = se_get(f"answers/{answer_id}", {
-        "site": "blender",
-        "filter": SE_FILTER,
-    })
+    data = se_get(
+        f"answers/{answer_id}",
+        {
+            "site": "blender",
+            "filter": SE_FILTER,
+        },
+    )
     items = data.get("items", [])
     return items[0] if items else {}
 
@@ -125,10 +137,13 @@ def fetch_answers_batch(answer_ids: list[int]) -> list[dict]:
     if not answer_ids:
         return []
     ids_str = ";".join(str(i) for i in answer_ids[:100])
-    data = se_get(f"answers/{ids_str}", {
-        "site": "blender",
-        "filter": SE_FILTER,
-    })
+    data = se_get(
+        f"answers/{ids_str}",
+        {
+            "site": "blender",
+            "filter": SE_FILTER,
+        },
+    )
     return data.get("items", [])
 
 
@@ -210,15 +225,29 @@ def save_records(records: list[dict]) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Harvest Blender StackExchange Q&A pairs")
-    parser.add_argument("--max-pages", type=int, default=200,
-                        help="Max pages to fetch (100 questions per page)")
-    parser.add_argument("--code-only", action="store_true",
-                        help="Only save answers that contain Python/bpy code")
-    parser.add_argument("--resume", action="store_true",
-                        help="Resume from last checkpoint")
-    parser.add_argument("--min-answer-score", type=int, default=0,
-                        help="Minimum answer score to include")
+    parser = argparse.ArgumentParser(
+        description="Harvest Blender StackExchange Q&A pairs"
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=200,
+        help="Max pages to fetch (100 questions per page)",
+    )
+    parser.add_argument(
+        "--code-only",
+        action="store_true",
+        help="Only save answers that contain Python/bpy code",
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Resume from last checkpoint"
+    )
+    parser.add_argument(
+        "--min-answer-score",
+        type=int,
+        default=0,
+        help="Minimum answer score to include",
+    )
     args = parser.parse_args()
 
     progress = load_progress() if args.resume else {"last_page": 0, "total_saved": 0}
@@ -229,7 +258,7 @@ def main():
     total_bpy = 0
     total_code = 0
 
-    print(f"=== BLENDER STACKEXCHANGE HARVESTER ===")
+    print("=== BLENDER STACKEXCHANGE HARVESTER ===")
     print(f"Resuming from page {start_page}")
     print(f"Mode: {'code-only' if args.code_only else 'all accepted answers'}\n")
 
@@ -294,8 +323,10 @@ def main():
         quota_remaining = data.get("quota_remaining", 9999)
         has_more = data.get("has_more", False)
 
-        print(f"    +{len(records_this_page)} records | bpy: {total_bpy} | "
-              f"code: {total_code} | total: {total_saved} | quota: {quota_remaining}")
+        print(
+            f"    +{len(records_this_page)} records | bpy: {total_bpy} | "
+            f"code: {total_code} | total: {total_saved} | quota: {quota_remaining}"
+        )
 
         save_progress(page, total_saved)
 
@@ -307,12 +338,12 @@ def main():
         sleep_time = 1.5 if quota_remaining > 100 else 5.0
         time.sleep(sleep_time)
 
-    print(f"\n=== SUMMARY ===")
+    print("\n=== SUMMARY ===")
     print(f"Total Q&A pairs saved: {total_saved}")
     print(f"  - With bpy code: {total_bpy}")
     print(f"  - With any code: {total_code}")
     print(f"Output: {SE_QA_FILE}")
-    print(f"\nNext step: python synthesis/curriculum.py")
+    print("\nNext step: python synthesis/curriculum.py")
 
 
 if __name__ == "__main__":

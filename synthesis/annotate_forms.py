@@ -28,12 +28,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
 
-from synthesis.prompts import FORM_ANALYSIS_SYSTEM_PROMPT, INTENT_DECOMPOSITION_SYSTEM_PROMPT
+from synthesis.prompts import FORM_ANALYSIS_SYSTEM_PROMPT
 
-OBJAVERSE_DIR  = Path(__file__).parents[1] / "data" / "objaverse"
-RENDERS_DIR    = OBJAVERSE_DIR / "renders"
+OBJAVERSE_DIR = Path(__file__).parents[1] / "data" / "objaverse"
+RENDERS_DIR = OBJAVERSE_DIR / "renders"
 ANNOTATIONS_DIR = OBJAVERSE_DIR / "annotations"
-PROCESSED_DIR  = Path(__file__).parents[1] / "data" / "processed"
+PROCESSED_DIR = Path(__file__).parents[1] / "data" / "processed"
 
 # Views to include in the prompt (best signal-to-token ratio)
 VIEWS_TO_USE = ["front", "iso_front", "top", "right"]
@@ -50,25 +50,31 @@ def build_vision_messages(uid: str, metadata: dict) -> list[dict]:
     for view in VIEWS_TO_USE:
         img_path = render_dir / f"{view}.png"
         if img_path.exists():
-            image_content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": load_image_b64(img_path),
+            image_content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": load_image_b64(img_path),
+                    },
                 }
-            })
+            )
 
     name = metadata.get("name", uid)
     tags = ", ".join(metadata.get("tags", [])[:10])
-    image_content.append({
-        "type": "text",
-        "text": f"Object name: {name}\nTags: {tags}\n\nAnalyze this 3D object and produce form analysis + Blender build sequence."
-    })
+    image_content.append(
+        {
+            "type": "text",
+            "text": f"Object name: {name}\nTags: {tags}\n\nAnalyze this 3D object and produce form analysis + Blender build sequence.",
+        }
+    )
     return image_content
 
 
-async def annotate_claude(client: httpx.AsyncClient, uid: str, metadata: dict, api_key: str) -> dict | None:
+async def annotate_claude(
+    client: httpx.AsyncClient, uid: str, metadata: dict, api_key: str
+) -> dict | None:
     messages_content = build_vision_messages(uid, metadata)
     try:
         resp = await client.post(
@@ -79,7 +85,7 @@ async def annotate_claude(client: httpx.AsyncClient, uid: str, metadata: dict, a
                 "content-type": "application/json",
             },
             json={
-                "model": "claude-opus-4-6",   # Use Opus for best form analysis quality
+                "model": "claude-opus-4-6",  # Use Opus for best form analysis quality
                 "max_tokens": 8192,
                 "system": FORM_ANALYSIS_SYSTEM_PROMPT,
                 "messages": [{"role": "user", "content": messages_content}],
@@ -94,28 +100,44 @@ async def annotate_claude(client: httpx.AsyncClient, uid: str, metadata: dict, a
         try:
             return json.loads(raw)
         except json.JSONDecodeError as parse_err:
-            print(f"Warning: annotate_claude JSON parse failed for {uid}: {parse_err}", file=sys.stderr)
+            print(
+                f"Warning: annotate_claude JSON parse failed for {uid}: {parse_err}",
+                file=sys.stderr,
+            )
             return None
     except Exception as e:
         print(f"Warning: annotate_claude failed for {uid}: {e}", file=sys.stderr)
         return None
 
 
-async def annotate_vllm(client: httpx.AsyncClient, uid: str, metadata: dict,
-                         vllm_url: str, model: str, api_key: str) -> dict | None:
+async def annotate_vllm(
+    client: httpx.AsyncClient,
+    uid: str,
+    metadata: dict,
+    vllm_url: str,
+    model: str,
+    api_key: str,
+) -> dict | None:
     render_dir = RENDERS_DIR / uid
     image_content = []
     for view in VIEWS_TO_USE:
         img_path = render_dir / f"{view}.png"
         if img_path.exists():
             b64 = load_image_b64(img_path)
-            image_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{b64}"}
-            })
+            image_content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"},
+                }
+            )
 
     name = metadata.get("name", uid)
-    image_content.append({"type": "text", "text": f"Object: {name}. Analyze form and produce Blender build sequence."})
+    image_content.append(
+        {
+            "type": "text",
+            "text": f"Object: {name}. Analyze form and produce Blender build sequence.",
+        }
+    )
 
     try:
         resp = await client.post(
@@ -140,14 +162,19 @@ async def annotate_vllm(client: httpx.AsyncClient, uid: str, metadata: dict,
         try:
             return json.loads(raw)
         except json.JSONDecodeError as parse_err:
-            print(f"Warning: annotate_vllm JSON parse failed for {uid}: {parse_err}", file=sys.stderr)
+            print(
+                f"Warning: annotate_vllm JSON parse failed for {uid}: {parse_err}",
+                file=sys.stderr,
+            )
             return None
     except Exception as e:
         print(f"Warning: annotate_vllm failed for {uid}: {e}", file=sys.stderr)
         return None
 
 
-def annotation_to_training_pairs(uid: str, annotation: dict, metadata: dict) -> list[dict]:
+def annotation_to_training_pairs(
+    uid: str, annotation: dict, metadata: dict
+) -> list[dict]:
     """Convert a form annotation into individual training pairs for the dataset."""
     pairs = []
     build_sequence = annotation.get("build_sequence", [])
@@ -157,47 +184,65 @@ def annotation_to_training_pairs(uid: str, annotation: dict, metadata: dict) -> 
 
     for i, step in enumerate(build_sequence):
         scene_before = (
-            "Empty Blender scene" if i == 0
-            else f"Partially built {obj_name}: {build_sequence[i-1].get('description', '')}"
+            "Empty Blender scene"
+            if i == 0
+            else f"Partially built {obj_name}: {build_sequence[i - 1].get('description', '')}"
         )
-        pairs.append({
-            "source": "objaverse_3d",
-            "uid": uid,
-            "object_name": obj_name,
-            "object_category": category,
-            "voice_command": step.get("voice_command", ""),
-            "scene_context": step.get("scene_context", scene_before),
-            "blender_op": step.get("blender_op", {}),
-            "blender_python": step.get("blender_python", ""),
-            "reasoning": f"Step {step.get('step', i+1)} of building {obj_name}: {step.get('description', '')}",
-            "form_context": {
-                "primary_form": form.get("primary_form", ""),
-                "proportions": form.get("proportions", ""),
-                "surface_character": form.get("surface_character", ""),
-                "modeling_approach": annotation.get("modeling_approach", ""),
-            },
-        })
+        pairs.append(
+            {
+                "source": "objaverse_3d",
+                "uid": uid,
+                "object_name": obj_name,
+                "object_category": category,
+                "voice_command": step.get("voice_command", ""),
+                "scene_context": step.get("scene_context", scene_before),
+                "blender_op": step.get("blender_op", {}),
+                "blender_python": step.get("blender_python", ""),
+                "reasoning": f"Step {step.get('step', i + 1)} of building {obj_name}: {step.get('description', '')}",
+                "form_context": {
+                    "primary_form": form.get("primary_form", ""),
+                    "proportions": form.get("proportions", ""),
+                    "surface_character": form.get("surface_character", ""),
+                    "modeling_approach": annotation.get("modeling_approach", ""),
+                },
+            }
+        )
 
     # Also generate the high-level intent → full plan pair
     if build_sequence:
-        pairs.append({
-            "source": "objaverse_3d_intent",
-            "uid": uid,
-            "object_name": obj_name,
-            "object_category": category,
-            "voice_command": f"create a {obj_name}",
-            "scene_context": "Empty Blender scene",
-            "blender_op": {"op": "MULTI_STEP_PLAN", "args": {}, "target_object": None},
-            "blender_python": "\n".join(s.get("blender_python", "") for s in build_sequence[:5]),
-            "reasoning": f"High-level: create {obj_name} using {annotation.get('modeling_approach', 'standard modeling')}",
-            "full_plan": annotation,
-        })
+        pairs.append(
+            {
+                "source": "objaverse_3d_intent",
+                "uid": uid,
+                "object_name": obj_name,
+                "object_category": category,
+                "voice_command": f"create a {obj_name}",
+                "scene_context": "Empty Blender scene",
+                "blender_op": {
+                    "op": "MULTI_STEP_PLAN",
+                    "args": {},
+                    "target_object": None,
+                },
+                "blender_python": "\n".join(
+                    s.get("blender_python", "") for s in build_sequence[:5]
+                ),
+                "reasoning": f"High-level: create {obj_name} using {annotation.get('modeling_approach', 'standard modeling')}",
+                "full_plan": annotation,
+            }
+        )
     return pairs
 
 
 async def annotate_object(
-    uid: str, metadata: dict, client: httpx.AsyncClient, semaphore: asyncio.Semaphore,
-    backend: str, vllm_url: str, vllm_model: str, vllm_api_key: str, claude_api_key: str,
+    uid: str,
+    metadata: dict,
+    client: httpx.AsyncClient,
+    semaphore: asyncio.Semaphore,
+    backend: str,
+    vllm_url: str,
+    vllm_model: str,
+    vllm_api_key: str,
+    claude_api_key: str,
 ) -> tuple[str, int]:
     out_path = ANNOTATIONS_DIR / f"{uid}.json"
     pairs_path = ANNOTATIONS_DIR / f"{uid}_pairs.jsonl"
@@ -214,7 +259,9 @@ async def annotate_object(
         if backend == "claude":
             annotation = await annotate_claude(client, uid, metadata, claude_api_key)
         else:
-            annotation = await annotate_vllm(client, uid, metadata, vllm_url, vllm_model, vllm_api_key)
+            annotation = await annotate_vllm(
+                client, uid, metadata, vllm_url, vllm_model, vllm_api_key
+            )
 
     if not annotation:
         return uid, 0
@@ -254,8 +301,13 @@ def load_metadata() -> dict[str, dict]:
 
 
 async def run(
-    uids: list[str], metadata_map: dict, backend: str,
-    vllm_url: str, vllm_model: str, vllm_api_key: str, claude_api_key: str,
+    uids: list[str],
+    metadata_map: dict,
+    backend: str,
+    vllm_url: str,
+    vllm_model: str,
+    vllm_api_key: str,
+    claude_api_key: str,
     concurrency: int,
 ):
     semaphore = asyncio.Semaphore(concurrency)
@@ -266,8 +318,15 @@ async def run(
     async with httpx.AsyncClient() as client:
         tasks = [
             annotate_object(
-                uid, metadata_map.get(uid, {}), client, semaphore,
-                backend, vllm_url, vllm_model, vllm_api_key, claude_api_key,
+                uid,
+                metadata_map.get(uid, {}),
+                client,
+                semaphore,
+                backend,
+                vllm_url,
+                vllm_model,
+                vllm_api_key,
+                claude_api_key,
             )
             for uid in uids
         ]
@@ -283,11 +342,15 @@ async def run(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Annotate 3D objects with form analysis + build sequences")
+    parser = argparse.ArgumentParser(
+        description="Annotate 3D objects with form analysis + build sequences"
+    )
     parser.add_argument("--backend", choices=["claude", "vllm"], default="claude")
     parser.add_argument("--vllm-url", default="http://localhost:8001")
     parser.add_argument("--vllm-model", default="Qwen/Qwen2-VL-72B-Instruct")
-    parser.add_argument("--vllm-api-key", default=os.environ.get("VLLM_API_KEY", "nalana"))
+    parser.add_argument(
+        "--vllm-api-key", default=os.environ.get("VLLM_API_KEY", "nalana")
+    )
     parser.add_argument("--claude-api-key", default=os.environ.get("ANTHROPIC_API_KEY"))
     parser.add_argument("--concurrency", type=int, default=None)
     parser.add_argument("--limit", type=int)
@@ -301,14 +364,22 @@ def main():
         args.concurrency = 8 if args.backend == "vllm" else 3  # Vision is slower
 
     metadata_map = load_metadata()
-    rendered = [p.name for p in RENDERS_DIR.glob("*") if (RENDERS_DIR / p.name / "front.png").exists()]
+    rendered = [
+        p.name
+        for p in RENDERS_DIR.glob("*")
+        if (RENDERS_DIR / p.name / "front.png").exists()
+    ]
 
     if not args.force:
-        done = set(p.stem for p in ANNOTATIONS_DIR.glob("*.json")) if ANNOTATIONS_DIR.exists() else set()
+        done = (
+            set(p.stem for p in ANNOTATIONS_DIR.glob("*.json"))
+            if ANNOTATIONS_DIR.exists()
+            else set()
+        )
         rendered = [uid for uid in rendered if uid not in done]
 
     if args.limit:
-        rendered = rendered[:args.limit]
+        rendered = rendered[: args.limit]
 
     if not rendered:
         print("Nothing to annotate. Run render_pipeline.py first.")
@@ -320,13 +391,22 @@ def main():
     print()
 
     start = time.time()
-    total = asyncio.run(run(
-        rendered, metadata_map, args.backend,
-        args.vllm_url, args.vllm_model, args.vllm_api_key, args.claude_api_key,
-        args.concurrency,
-    ))
+    total = asyncio.run(
+        run(
+            rendered,
+            metadata_map,
+            args.backend,
+            args.vllm_url,
+            args.vllm_model,
+            args.vllm_api_key,
+            args.claude_api_key,
+            args.concurrency,
+        )
+    )
 
-    print(f"\nDone in {(time.time()-start)/60:.1f}min. {total} training pairs generated.")
+    print(
+        f"\nDone in {(time.time() - start) / 60:.1f}min. {total} training pairs generated."
+    )
     count, out = merge_to_processed()
     print(f"Merged → {out} ({count} total Stream 2 pairs)")
     print("\nNext step: python train_prep.py")

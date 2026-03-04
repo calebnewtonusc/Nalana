@@ -76,8 +76,8 @@ CODE_SEARCH_QUERIES = [
 # ─── Patterns to extract script intent ──────────────────────────────────────
 DOCSTRING_PATTERN = re.compile(r'"""(.*?)"""', re.DOTALL)
 SINGLE_DOCSTRING_PATTERN = re.compile(r"'''(.*?)'''", re.DOTALL)
-COMMENT_PATTERN = re.compile(r'^#\s*(.+)$', re.MULTILINE)
-BPY_IMPORT_PATTERN = re.compile(r'import bpy', re.MULTILINE)
+COMMENT_PATTERN = re.compile(r"^#\s*(.+)$", re.MULTILINE)
+BPY_IMPORT_PATTERN = re.compile(r"import bpy", re.MULTILINE)
 CLASS_PATTERN = re.compile(r'class\s+(\w+)\s*\(.*\):\s*\n\s*"""(.*?)"""', re.DOTALL)
 FUNCTION_PATTERN = re.compile(r'def\s+(\w+)\s*\([^)]*\):\s*\n\s*"""(.*?)"""', re.DOTALL)
 
@@ -90,12 +90,15 @@ MIN_STARS_FOR_REPO = 2
 def gh_get(endpoint: str, params: dict, token: str) -> dict:
     """Make authenticated GitHub API request."""
     url = f"{GH_BASE}/{endpoint}?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "nalana-bpy-harvester/1.0",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "nalana-bpy-harvester/1.0",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read())
@@ -115,13 +118,17 @@ def search_repos(query: str, token: str, max_pages: int = 10) -> list[dict]:
     repos = []
     page = 1
     while page <= max_pages:
-        data = gh_get("search/repositories", {
-            "q": query,
-            "sort": "stars",
-            "order": "desc",
-            "per_page": 100,
-            "page": page,
-        }, token)
+        data = gh_get(
+            "search/repositories",
+            {
+                "q": query,
+                "sort": "stars",
+                "order": "desc",
+                "per_page": 100,
+                "page": page,
+            },
+            token,
+        )
         items = data.get("items", [])
         if not items:
             break
@@ -138,11 +145,15 @@ def search_code(query: str, token: str, max_pages: int = 10) -> list[dict]:
     results = []
     page = 1
     while page <= max_pages:
-        data = gh_get("search/code", {
-            "q": query,
-            "per_page": 100,
-            "page": page,
-        }, token)
+        data = gh_get(
+            "search/code",
+            {
+                "q": query,
+                "per_page": 100,
+                "page": page,
+            },
+            token,
+        )
         items = data.get("items", [])
         if not items:
             break
@@ -154,12 +165,14 @@ def search_code(query: str, token: str, max_pages: int = 10) -> list[dict]:
     return results
 
 
-def get_repo_python_files(owner: str, repo: str, token: str, path: str = "") -> list[dict]:
+def get_repo_python_files(
+    owner: str, repo: str, token: str, path: str = ""
+) -> list[dict]:
     """Get all Python files in a repository."""
     files = []
     try:
         data = gh_get(f"repos/{owner}/{repo}/contents/{path}", {}, token)
-    except Exception as e:
+    except Exception:
         return []
 
     if isinstance(data, list):
@@ -168,7 +181,9 @@ def get_repo_python_files(owner: str, repo: str, token: str, path: str = "") -> 
                 files.append(item)
             elif item.get("type") == "dir" and not item.get("name", "").startswith("."):
                 # Recurse into subdirectories (limit depth to avoid huge repos)
-                sub_files = get_repo_python_files(owner, repo, token, item.get("path", ""))
+                sub_files = get_repo_python_files(
+                    owner, repo, token, item.get("path", "")
+                )
                 files.extend(sub_files[:50])  # cap per directory
     elif isinstance(data, dict):
         if data.get("name", "").endswith(".py"):
@@ -178,10 +193,13 @@ def get_repo_python_files(owner: str, repo: str, token: str, path: str = "") -> 
 
 def download_file_content(download_url: str, token: str) -> Optional[str]:
     """Download raw file content from GitHub."""
-    req = urllib.request.Request(download_url, headers={
-        "Authorization": f"Bearer {token}",
-        "User-Agent": "nalana-bpy-harvester/1.0",
-    })
+    req = urllib.request.Request(
+        download_url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "nalana-bpy-harvester/1.0",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return resp.read().decode("utf-8", errors="replace")
@@ -197,7 +215,7 @@ def is_valid_bpy_script(content: str) -> bool:
     if len(lines) < MIN_SCRIPT_LINES:
         return False
     # Count bpy API calls
-    bpy_calls = len(re.findall(r'bpy\.(ops|data|context|types|utils|props)', content))
+    bpy_calls = len(re.findall(r"bpy\.(ops|data|context|types|utils|props)", content))
     if bpy_calls < MIN_BPY_OPS_CALLS:
         return False
     return True
@@ -250,17 +268,19 @@ def extract_function_pairs(content: str) -> list[dict]:
         start = match.start()
         # Find function end (next function at same indent or EOF)
         func_end = len(content)
-        next_func = re.search(r'\ndef\s+', content[start + 10:])
+        next_func = re.search(r"\ndef\s+", content[start + 10 :])
         if next_func:
             func_end = start + 10 + next_func.start()
         func_code = content[start:func_end].strip()
         if len(func_code) > 100:
-            pairs.append({
-                "description": docstring[:400],
-                "code": func_code[:3000],
-                "granularity": "function",
-                "function_name": func_name,
-            })
+            pairs.append(
+                {
+                    "description": docstring[:400],
+                    "code": func_code[:3000],
+                    "granularity": "function",
+                    "function_name": func_name,
+                }
+            )
     return pairs
 
 
@@ -279,16 +299,18 @@ def process_bpy_file(
 
     # Whole-file pair
     description = extract_script_description(content, filename, repo_name)
-    records.append({
-        "type": "whole_script",
-        "description": description,
-        "code": content[:8000],  # cap at 8k chars
-        "filename": filename,
-        "repo": repo_name,
-        "repo_url": repo_url,
-        "stars": stars,
-        "granularity": "script",
-    })
+    records.append(
+        {
+            "type": "whole_script",
+            "description": description,
+            "code": content[:8000],  # cap at 8k chars
+            "filename": filename,
+            "repo": repo_name,
+            "repo_url": repo_url,
+            "stars": stars,
+            "granularity": "script",
+        }
+    )
 
     # Function-level pairs
     func_pairs = extract_function_pairs(content)
@@ -332,12 +354,17 @@ def load_seen_scripts() -> int:
 def save_repo_marker(repo: dict) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with open(BPY_REPOS_FILE, "a") as f:
-        f.write(json.dumps({
-            "full_name": repo.get("full_name"),
-            "stars": repo.get("stargazers_count"),
-            "url": repo.get("html_url"),
-            "description": repo.get("description", ""),
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "full_name": repo.get("full_name"),
+                    "stars": repo.get("stargazers_count"),
+                    "url": repo.get("html_url"),
+                    "description": repo.get("description", ""),
+                }
+            )
+            + "\n"
+        )
 
 
 def save_records(records: list[dict]) -> int:
@@ -385,12 +412,20 @@ def process_repo(repo: dict, token: str) -> int:
 def main():
     parser = argparse.ArgumentParser(description="Harvest bpy scripts from GitHub")
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""))
-    parser.add_argument("--max-repos", type=int, default=3000,
-                        help="Max repos to process per search query")
-    parser.add_argument("--code-search", action="store_true",
-                        help="Also run code-level search (slower, finds more files)")
-    parser.add_argument("--resume", action="store_true",
-                        help="Skip already-processed repos")
+    parser.add_argument(
+        "--max-repos",
+        type=int,
+        default=3000,
+        help="Max repos to process per search query",
+    )
+    parser.add_argument(
+        "--code-search",
+        action="store_true",
+        help="Also run code-level search (slower, finds more files)",
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Skip already-processed repos"
+    )
     args = parser.parse_args()
 
     if not args.token:
@@ -399,7 +434,9 @@ def main():
 
     seen_repos = load_seen_repos() if args.resume else set()
     total_scripts = load_seen_scripts()
-    print(f"Resuming from {len(seen_repos)} seen repos, {total_scripts} existing scripts\n")
+    print(
+        f"Resuming from {len(seen_repos)} seen repos, {total_scripts} existing scripts\n"
+    )
 
     # ── Phase 1: Repo-level search ────────────────────────────────────────────
     print("=== PHASE 1: REPO SEARCH ===")
@@ -426,7 +463,7 @@ def main():
         all_repos.items(),
         key=lambda x: x[1].get("stargazers_count", 0),
         reverse=True,
-    )[:args.max_repos]:
+    )[: args.max_repos]:
         if full_name in seen_repos:
             continue
         count = process_repo(repo, args.token)
@@ -434,7 +471,9 @@ def main():
         seen_repos.add(full_name)
         total_new_records += count
         processed += 1
-        print(f"  [{processed}] {full_name} ({repo.get('stargazers_count', 0)} stars) → {count} records")
+        print(
+            f"  [{processed}] {full_name} ({repo.get('stargazers_count', 0)} stars) → {count} records"
+        )
         time.sleep(0.2)
 
     # ── Phase 3: Code-level search ────────────────────────────────────────────
@@ -448,11 +487,13 @@ def main():
                 full_name = repo_data.get("full_name", "")
                 if full_name in seen_repos:
                     continue
-                download_url = item.get("url", "")
+                item.get("url", "")
                 # Code search returns API URL, need raw URL
-                raw_url = item.get("html_url", "").replace(
-                    "github.com", "raw.githubusercontent.com"
-                ).replace("/blob/", "/")
+                raw_url = (
+                    item.get("html_url", "")
+                    .replace("github.com", "raw.githubusercontent.com")
+                    .replace("/blob/", "/")
+                )
                 content = download_file_content(raw_url, args.token)
                 if content:
                     records = process_bpy_file(
@@ -469,7 +510,7 @@ def main():
     final_count = load_seen_scripts()
     print(f"\nNew records this run: {total_new_records}")
     print(f"Total bpy training pairs in {BPY_SCRIPTS_FILE}: {final_count}")
-    print(f"\nNext step: python synthesis/curriculum.py")
+    print("\nNext step: python synthesis/curriculum.py")
 
 
 if __name__ == "__main__":

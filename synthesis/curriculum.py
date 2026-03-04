@@ -40,66 +40,73 @@ CURRICULUM_DIR = DATA_DIR / "curriculum"
 # ─── Software detection patterns ─────────────────────────────────────────────
 SOFTWARE_PATTERNS = {
     "blender": re.compile(
-        r'\b(blender|bpy\.|geometry\s+nodes?|shader\s+nodes?|cycles|eevee|'
-        r'grease\s+pencil|rigify|armature|sculpt\s+mode)\b', re.I
+        r"\b(blender|bpy\.|geometry\s+nodes?|shader\s+nodes?|cycles|eevee|"
+        r"grease\s+pencil|rigify|armature|sculpt\s+mode)\b",
+        re.I,
     ),
     "houdini": re.compile(
-        r'\b(houdini|sidefx|vex\s+code|vops|sops|dops|lops|solaris|'
-        r'hqueue|mantra|karma)\b', re.I
+        r"\b(houdini|sidefx|vex\s+code|vops|sops|dops|lops|solaris|"
+        r"hqueue|mantra|karma)\b",
+        re.I,
     ),
     "maya": re.compile(
-        r'\b(maya|autodesk\s+maya|maya\s+python|pymel|cmds\.|mel\s+script|'
-        r'bifrost|arnold\s+for\s+maya|mash|ncloth)\b', re.I
+        r"\b(maya|autodesk\s+maya|maya\s+python|pymel|cmds\.|mel\s+script|"
+        r"bifrost|arnold\s+for\s+maya|mash|ncloth)\b",
+        re.I,
     ),
     "cinema4d": re.compile(
-        r'\b(cinema\s*4d|c4d|maxon|mograph|xpresso|redshift|'
-        r'field\s+forces|volume\s+builder)\b', re.I
+        r"\b(cinema\s*4d|c4d|maxon|mograph|xpresso|redshift|"
+        r"field\s+forces|volume\s+builder)\b",
+        re.I,
     ),
     "zbrush": re.compile(
-        r'\b(zbrush|pixologic|dynamesh|sculptris|fibermesh|'
-        r'polypaint|zremesher|zsphere|zplugin)\b', re.I
+        r"\b(zbrush|pixologic|dynamesh|sculptris|fibermesh|"
+        r"polypaint|zremesher|zsphere|zplugin)\b",
+        re.I,
     ),
     "substance": re.compile(
-        r'\b(substance\s+(painter|designer|3d)|adobe\s+substance|'
-        r'smart\s+materials?|substance\s+graph|sbsar)\b', re.I
+        r"\b(substance\s+(painter|designer|3d)|adobe\s+substance|"
+        r"smart\s+materials?|substance\s+graph|sbsar)\b",
+        re.I,
     ),
     "unreal": re.compile(
-        r'\b(unreal\s+engine|ue[45]|nanite|lumen|niagara|blueprints?|'
-        r'fab\.com|fab\s+marketplace)\b', re.I
+        r"\b(unreal\s+engine|ue[45]|nanite|lumen|niagara|blueprints?|"
+        r"fab\.com|fab\s+marketplace)\b",
+        re.I,
     ),
 }
 
 # ─── Complexity scoring patterns ──────────────────────────────────────────────
 COMPLEXITY_INDICATORS = {
     1: [  # Primitive operations
-        r'\b(add\s+(cube|sphere|cylinder|plane)|move\s+object|rotate|scale|'
-        r'duplicate|delete|hide|unhide|select\s+all|deselect|apply\s+transform|'
-        r'viewport\s+shading|object\s+mode|edit\s+mode|set\s+(material|color))\b',
+        r"\b(add\s+(cube|sphere|cylinder|plane)|move\s+object|rotate|scale|"
+        r"duplicate|delete|hide|unhide|select\s+all|deselect|apply\s+transform|"
+        r"viewport\s+shading|object\s+mode|edit\s+mode|set\s+(material|color))\b",
     ],
     2: [  # Modifier stacks and basic workflows
-        r'\b(modifier|array|mirror|bevel|subdivision|solidify|'
-        r'boolean|shrinkwrap|displace|wave|decimate|remesh)\b',
-        r'\b(UV\s+unwrap|texture\s+(bake|paint)|weight\s+paint|shape\s+key)\b',
+        r"\b(modifier|array|mirror|bevel|subdivision|solidify|"
+        r"boolean|shrinkwrap|displace|wave|decimate|remesh)\b",
+        r"\b(UV\s+unwrap|texture\s+(bake|paint)|weight\s+paint|shape\s+key)\b",
     ],
     3: [  # Node graphs and procedural
-        r'\b(node\s+(group|graph|tree)|shader\s+node|geometry\s+node|'
-        r'procedural|instance\s+on\s+points|attribute|field|'
-        r'noise\s+texture|voronoi|wave\s+texture)\b',
-        r'\b(xpresso|vops|material\s+graph|substance\s+graph|'
-        r'grasshopper|kangaroo|galapagos)\b',
+        r"\b(node\s+(group|graph|tree)|shader\s+node|geometry\s+node|"
+        r"procedural|instance\s+on\s+points|attribute|field|"
+        r"noise\s+texture|voronoi|wave\s+texture)\b",
+        r"\b(xpresso|vops|material\s+graph|substance\s+graph|"
+        r"grasshopper|kangaroo|galapagos)\b",
     ],
     4: [  # Scripting and automation
-        r'\b(python\s+script|bpy\.|scripting|add-?on|plugin|automation|'
-        r'batch\s+(render|process)|command\s+line|headless)\b',
-        r'\b(mel\s+script|pymel|cmds\.|vex\s+code|hscript|'
-        r'maxscript|c#\s+plugin)\b',
+        r"\b(python\s+script|bpy\.|scripting|add-?on|plugin|automation|"
+        r"batch\s+(render|process)|command\s+line|headless)\b",
+        r"\b(mel\s+script|pymel|cmds\.|vex\s+code|hscript|"
+        r"maxscript|c#\s+plugin)\b",
     ],
     5: [  # Expert multi-step pipelines and agents
-        r'\b(pipeline|workflow|multi.?step|production\s+pipeline|'
-        r'asset\s+management|render\s+farm|LOD\s+generation|'
-        r'procedural\s+city|destruction\s+sim|fluid\s+sim|crowd\s+sim)\b',
-        r'\b(photogrammetry|neural\s+radiance|nerf|gaussian\s+splat|'
-        r'AI.?generated|generative\s+3D|diffusion\s+model)\b',
+        r"\b(pipeline|workflow|multi.?step|production\s+pipeline|"
+        r"asset\s+management|render\s+farm|LOD\s+generation|"
+        r"procedural\s+city|destruction\s+sim|fluid\s+sim|crowd\s+sim)\b",
+        r"\b(photogrammetry|neural\s+radiance|nerf|gaussian\s+splat|"
+        r"AI.?generated|generative\s+3D|diffusion\s+model)\b",
     ],
 }
 
@@ -112,35 +119,42 @@ COMPILED_COMPLEXITY = {
 # ─── Concept category patterns ────────────────────────────────────────────────
 CONCEPT_CATEGORIES = {
     "modeling": re.compile(
-        r'\b(model|mesh|polygon|vertex|edge|face|topology|retopolog|'
-        r'hard\s+surface|organic|sculpt)\b', re.I
+        r"\b(model|mesh|polygon|vertex|edge|face|topology|retopolog|"
+        r"hard\s+surface|organic|sculpt)\b",
+        re.I,
     ),
     "rigging": re.compile(
-        r'\b(rig|armature|bone|weight\s+paint|IK|FK|control\s+rig|'
-        r'deform|skin|metarig)\b', re.I
+        r"\b(rig|armature|bone|weight\s+paint|IK|FK|control\s+rig|"
+        r"deform|skin|metarig)\b",
+        re.I,
     ),
     "animation": re.compile(
-        r'\b(animat|keyframe|NLA|timeline|graph\s+editor|driver|'
-        r'walk\s+cycle|lip\s+sync|motion\s+path)\b', re.I
+        r"\b(animat|keyframe|NLA|timeline|graph\s+editor|driver|"
+        r"walk\s+cycle|lip\s+sync|motion\s+path)\b",
+        re.I,
     ),
     "vfx": re.compile(
-        r'\b(VFX|visual\s+effect|simulation|fluid|smoke|fire|'
-        r'pyro|particle|cloth|rigid\s+body|soft\s+body|ocean)\b', re.I
+        r"\b(VFX|visual\s+effect|simulation|fluid|smoke|fire|"
+        r"pyro|particle|cloth|rigid\s+body|soft\s+body|ocean)\b",
+        re.I,
     ),
     "rendering": re.compile(
-        r'\b(render|cycles|eevee|mantra|arnold|redshift|octane|'
-        r'HDRI|lighting|camera|depth\s+of\s+field|motion\s+blur)\b', re.I
+        r"\b(render|cycles|eevee|mantra|arnold|redshift|octane|"
+        r"HDRI|lighting|camera|depth\s+of\s+field|motion\s+blur)\b",
+        re.I,
     ),
     "texturing": re.compile(
-        r'\b(texture|UV|PBR|material|shader|substance|bake|'
-        r'normal\s+map|roughness|metallic|albedo)\b', re.I
+        r"\b(texture|UV|PBR|material|shader|substance|bake|"
+        r"normal\s+map|roughness|metallic|albedo)\b",
+        re.I,
     ),
     "scripting": re.compile(
-        r'\b(script|python|bpy|add-?on|plugin|automat|programm)\b', re.I
+        r"\b(script|python|bpy|add-?on|plugin|automat|programm)\b", re.I
     ),
     "compositing": re.compile(
-        r'\b(composit|post.?process|color\s+grade|render\s+pass|'
-        r'node\s+composit|after\s+effects|nuke)\b', re.I
+        r"\b(composit|post.?process|color\s+grade|render\s+pass|"
+        r"node\s+composit|after\s+effects|nuke)\b",
+        re.I,
     ),
 }
 
@@ -405,18 +419,18 @@ def print_stats(records: list[dict]) -> None:
         quality_sum += rec.get("_quality_score", 0.0)
 
     total = len(records)
-    print(f"\n=== CURRICULUM STATISTICS ===")
+    print("\n=== CURRICULUM STATISTICS ===")
     print(f"Total records: {total}")
     print(f"Average quality score: {quality_sum / max(total, 1):.3f}")
 
     print("\nBy complexity tier:")
     for tier in sorted(by_tier.keys()):
         count = by_tier[tier]
-        print(f"  {tier}: {count:>6} ({100*count/max(total,1):.1f}%)")
+        print(f"  {tier}: {count:>6} ({100 * count / max(total, 1):.1f}%)")
 
     print("\nBy software:")
     for sw, count in sorted(by_software.items(), key=lambda x: -x[1]):
-        print(f"  {sw:15}: {count:>6} ({100*count/max(total,1):.1f}%)")
+        print(f"  {sw:15}: {count:>6} ({100 * count / max(total, 1):.1f}%)")
 
     print("\nBy 3D concept:")
     for concept, count in sorted(by_concept.items(), key=lambda x: -x[1])[:10]:
@@ -424,17 +438,33 @@ def print_stats(records: list[dict]) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build curriculum for 3D AI training data")
-    parser.add_argument("--input", type=Path, default=DATA_DIR,
-                        help="Directory containing JSONL training data files")
-    parser.add_argument("--output", type=Path, default=CURRICULUM_DIR,
-                        help="Output directory for curriculum datasets")
-    parser.add_argument("--stats", action="store_true",
-                        help="Show statistics only, don't write output")
-    parser.add_argument("--total", type=int, default=None,
-                        help="Total training examples to include (samples proportionally)")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed for reproducibility")
+    parser = argparse.ArgumentParser(
+        description="Build curriculum for 3D AI training data"
+    )
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=DATA_DIR,
+        help="Directory containing JSONL training data files",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=CURRICULUM_DIR,
+        help="Output directory for curriculum datasets",
+    )
+    parser.add_argument(
+        "--stats", action="store_true", help="Show statistics only, don't write output"
+    )
+    parser.add_argument(
+        "--total",
+        type=int,
+        default=None,
+        help="Total training examples to include (samples proportionally)",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="Random seed for reproducibility"
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -513,7 +543,9 @@ def main():
             f.write(json.dumps(rec) + "\n")
     print(f"  high_quality: {hq_path} ({len(hq_records)} records)")
 
-    print(f"\nNext step: python training/train.py --data {args.output / 'curriculum_full.jsonl'}")
+    print(
+        f"\nNext step: python training/train.py --data {args.output / 'curriculum_full.jsonl'}"
+    )
 
 
 if __name__ == "__main__":

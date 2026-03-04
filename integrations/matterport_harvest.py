@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import math
 import random
 from pathlib import Path
 from typing import Any
@@ -55,8 +54,16 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 10),
         },
         "common_objects": [
-            "sofa", "coffee_table", "tv_stand", "armchair", "bookshelf",
-            "floor_lamp", "rug", "side_table", "window", "curtains",
+            "sofa",
+            "coffee_table",
+            "tv_stand",
+            "armchair",
+            "bookshelf",
+            "floor_lamp",
+            "rug",
+            "side_table",
+            "window",
+            "curtains",
         ],
         "lighting": ["recessed_can", "floor_lamp", "table_lamp", "pendant"],
         "materials": {
@@ -66,7 +73,13 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
         },
         "mp3d_avg_dims": (16.5, 19.2, 9.1),  # width, length, ceiling (ft)
         "mp3d_object_density": 8.3,  # avg objects per room
-        "style_variants": ["modern", "traditional", "scandinavian", "mid_century", "industrial"],
+        "style_variants": [
+            "modern",
+            "traditional",
+            "scandinavian",
+            "mid_century",
+            "industrial",
+        ],
     },
     "bedroom": {
         "display": "Bedroom",
@@ -76,8 +89,16 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 9),
         },
         "common_objects": [
-            "bed", "nightstand", "dresser", "closet", "desk", "chair",
-            "mirror", "lamp", "window", "curtains",
+            "bed",
+            "nightstand",
+            "dresser",
+            "closet",
+            "desk",
+            "chair",
+            "mirror",
+            "lamp",
+            "window",
+            "curtains",
         ],
         "lighting": ["overhead_fixture", "table_lamp", "recessed_can"],
         "materials": {
@@ -97,8 +118,15 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 10),
         },
         "common_objects": [
-            "cabinet_upper", "cabinet_lower", "refrigerator", "stove",
-            "dishwasher", "sink", "island", "microwave", "counter",
+            "cabinet_upper",
+            "cabinet_lower",
+            "refrigerator",
+            "stove",
+            "dishwasher",
+            "sink",
+            "island",
+            "microwave",
+            "counter",
         ],
         "lighting": ["pendant_over_island", "under_cabinet", "recessed_can"],
         "materials": {
@@ -109,7 +137,13 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
         },
         "mp3d_avg_dims": (10.8, 13.5, 9.0),
         "mp3d_object_density": 12.1,
-        "style_variants": ["modern", "farmhouse", "industrial", "traditional", "minimalist"],
+        "style_variants": [
+            "modern",
+            "farmhouse",
+            "industrial",
+            "traditional",
+            "minimalist",
+        ],
     },
     "bathroom": {
         "display": "Bathroom",
@@ -119,8 +153,14 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 9),
         },
         "common_objects": [
-            "toilet", "sink", "vanity", "bathtub", "shower", "mirror",
-            "towel_bar", "toilet_paper_holder",
+            "toilet",
+            "sink",
+            "vanity",
+            "bathtub",
+            "shower",
+            "mirror",
+            "towel_bar",
+            "toilet_paper_holder",
         ],
         "lighting": ["vanity_light", "recessed_can", "sconce"],
         "materials": {
@@ -140,8 +180,15 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 9),
         },
         "common_objects": [
-            "desk", "office_chair", "bookshelf", "filing_cabinet",
-            "monitor", "keyboard", "printer", "lamp", "whiteboard",
+            "desk",
+            "office_chair",
+            "bookshelf",
+            "filing_cabinet",
+            "monitor",
+            "keyboard",
+            "printer",
+            "lamp",
+            "whiteboard",
         ],
         "lighting": ["overhead_fixture", "desk_lamp", "recessed_can"],
         "materials": {
@@ -161,8 +208,13 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 10),
         },
         "common_objects": [
-            "dining_table", "dining_chair", "sideboard", "chandelier",
-            "buffet", "china_cabinet", "rug",
+            "dining_table",
+            "dining_chair",
+            "sideboard",
+            "chandelier",
+            "buffet",
+            "china_cabinet",
+            "rug",
         ],
         "lighting": ["chandelier", "pendant", "recessed_can"],
         "materials": {
@@ -182,8 +234,13 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (8, 14),
         },
         "common_objects": [
-            "car_space", "workbench", "shelving", "tool_cabinet",
-            "garage_door", "bike", "storage_boxes",
+            "car_space",
+            "workbench",
+            "shelving",
+            "tool_cabinet",
+            "garage_door",
+            "bike",
+            "storage_boxes",
         ],
         "lighting": ["fluorescent_shop_light", "led_strip"],
         "materials": {
@@ -203,8 +260,13 @@ ROOM_TYPE_DATA: dict[str, dict[str, Any]] = {
             "ceiling_range": (10, 24),
         },
         "common_objects": [
-            "reception_desk", "seating_area", "elevator", "mailboxes",
-            "art_installation", "planters", "signage",
+            "reception_desk",
+            "seating_area",
+            "elevator",
+            "mailboxes",
+            "art_installation",
+            "planters",
+            "signage",
         ],
         "lighting": ["chandelier", "recessed_can", "wall_sconce", "uplighting"],
         "materials": {
@@ -270,7 +332,7 @@ def generate_room_blender_python(
     return f"""import bpy
 import math
 
-# ─── Nalana Room Builder: {room_data['display']} ({width_ft:.0f}' × {length_ft:.0f}' × {ceiling_ft:.0f}') ───
+# ─── Nalana Room Builder: {room_data["display"]} ({width_ft:.0f}' × {length_ft:.0f}' × {ceiling_ft:.0f}') ───
 
 # Clear scene
 bpy.ops.object.select_all(action='SELECT')
@@ -346,7 +408,7 @@ wall_mat = make_material('Wall_{wall_mat}', {wall_color}, roughness=0.9)
 for wall in [wall_n, wall_s, wall_e, wall_w]:
     wall.data.materials.append(wall_mat)
 
-# ─── Lighting Setup for {style} {room_data['display']} ───
+# ─── Lighting Setup for {style} {room_data["display"]} ───
 # Main area light (simulates ceiling ambient)
 bpy.ops.object.light_add(type='AREA', location=(0, 0, H - 0.1))
 area_light = bpy.context.active_object
@@ -364,7 +426,7 @@ bg = world.node_tree.nodes.get('Background')
 bg.inputs['Color'].default_value = (0.85, 0.82, 0.78, 1.0)  # warm interior
 bg.inputs['Strength'].default_value = 0.3
 
-# Camera positioned for {room_data['display']} overview
+# Camera positioned for {room_data["display"]} overview
 bpy.ops.object.camera_add(location=(W * 0.4, -L * 0.45, H * 0.65))
 cam = bpy.context.active_object
 cam.name = "Room_Camera"
@@ -378,18 +440,25 @@ bpy.context.scene.cycles.samples = 128
 bpy.context.scene.render.resolution_x = 1920
 bpy.context.scene.render.resolution_y = 1080
 
-print(f"Room built: {{{room_data['display']}}} | {{W:.2f}}m × {{L:.2f}}m × {{H:.2f}}m | Style: {style}")
+print(f"Room built: {{{room_data["display"]}}} | {{W:.2f}}m × {{L:.2f}}m × {{H:.2f}}m | Style: {style}")
 """
 
 
-def generate_lighting_analysis(room_type: str, style: str, width_ft: float, length_ft: float, ceiling_ft: float) -> str:
+def generate_lighting_analysis(
+    room_type: str, style: str, width_ft: float, length_ft: float, ceiling_ft: float
+) -> str:
     """Generate expert lighting analysis for a given room."""
     room_data = ROOM_TYPE_DATA[room_type]
     area_sq_ft = width_ft * length_ft
     lux_target = {
-        "living_room": 200, "bedroom": 100, "kitchen": 500,
-        "bathroom": 300, "office": 400, "dining_room": 200,
-        "garage": 300, "lobby": 400,
+        "living_room": 200,
+        "bedroom": 100,
+        "kitchen": 500,
+        "bathroom": 300,
+        "office": 400,
+        "dining_room": 200,
+        "garage": 300,
+        "lobby": 400,
     }.get(room_type, 200)
 
     footcandles = lux_target / 10.764
@@ -424,25 +493,31 @@ def generate_spatial_pair(room_type: str, style: str, seed: int | None = None) -
     ceiling_m = ft_to_m(ceiling_ft)
 
     display = room_data["display"]
-    objects = random.sample(room_data["common_objects"], min(4, len(room_data["common_objects"])))
+    objects = random.sample(
+        room_data["common_objects"], min(4, len(room_data["common_objects"]))
+    )
     floor_mat = random.choice(room_data["materials"].get("floor", ["hardwood"]))
     wall_mat = random.choice(room_data["materials"].get("walls", ["drywall_painted"]))
 
-    lighting_analysis = generate_lighting_analysis(room_type, style, width_ft, length_ft, ceiling_ft)
-    blender_python = generate_room_blender_python(room_type, width_ft, length_ft, ceiling_ft, style)
+    lighting_analysis = generate_lighting_analysis(
+        room_type, style, width_ft, length_ft, ceiling_ft
+    )
+    blender_python = generate_room_blender_python(
+        room_type, width_ft, length_ft, ceiling_ft, style
+    )
 
     # Build step-by-step plan
     build_plan = [
-        f"Clear scene and set units to metric",
+        "Clear scene and set units to metric",
         f"Create floor plane: {width_m:.2f}m × {length_m:.2f}m at Z=0, apply {floor_mat.replace('_', ' ')} material",
         f"Create ceiling plane: {width_m:.2f}m × {length_m:.2f}m at Z={ceiling_m:.2f}m, flip normals downward",
         f"Create 4 walls at 0.15m thickness: North/South span {width_m:.2f}m, East/West span {length_m:.2f}m, height {ceiling_m:.2f}m",
         f"Apply {wall_mat.replace('_', ' ')} material with roughness 0.9 to all wall surfaces",
-        f"Add main area light at ceiling center: {max(500, int(width_ft * length_ft * 12))} watts, {width_m*0.7:.2f}m × {length_m*0.7:.2f}m",
-        f"Set world ambient to warm interior color (0.85, 0.82, 0.78), strength 0.3",
-        f"Position camera at ({width_m*0.4:.2f}m, {-length_m*0.45:.2f}m, {ceiling_m*0.65:.2f}m) with 24mm wide lens",
+        f"Add main area light at ceiling center: {max(500, int(width_ft * length_ft * 12))} watts, {width_m * 0.7:.2f}m × {length_m * 0.7:.2f}m",
+        "Set world ambient to warm interior color (0.85, 0.82, 0.78), strength 0.3",
+        f"Position camera at ({width_m * 0.4:.2f}m, {-length_m * 0.45:.2f}m, {ceiling_m * 0.65:.2f}m) with 24mm wide lens",
         f"Add {style}-style {display.lower()} furniture: {', '.join(o.replace('_', ' ') for o in objects)}",
-        f"Enable Cycles renderer, 128 samples, 1920×1080 output",
+        "Enable Cycles renderer, 128 samples, 1920×1080 output",
     ]
 
     voice_commands = [
@@ -469,7 +544,7 @@ def generate_spatial_pair(room_type: str, style: str, seed: int | None = None) -
         "voice_command": random.choice(voice_commands),
         "task_type": "BUILD",
         "scene_context": f"empty scene, reference: {style} {display.lower()}, "
-                         f"{width_ft:.0f}' × {length_ft:.0f}' × {ceiling_ft:.0f}'",
+        f"{width_ft:.0f}' × {length_ft:.0f}' × {ceiling_ft:.0f}'",
         "build_plan": build_plan,
         "blender_python": blender_python,
         "spatial_notes": spatial_notes,
@@ -479,7 +554,11 @@ def generate_spatial_pair(room_type: str, style: str, seed: int | None = None) -
             "room_type": room_type,
             "style": style,
             "dimensions_ft": [width_ft, length_ft, ceiling_ft],
-            "dimensions_m": [round(width_m, 3), round(length_m, 3), round(ceiling_m, 3)],
+            "dimensions_m": [
+                round(width_m, 3),
+                round(length_m, 3),
+                round(ceiling_m, 3),
+            ],
             "floor_area_sqft": round(width_ft * length_ft, 1),
             "floor_material": floor_mat,
             "wall_material": wall_mat,
@@ -502,7 +581,8 @@ def generate_proportion_qa_pair(room_type: str) -> dict:
     phi = 1.618
     is_golden = abs(aspect_ratio - phi) < 0.15
     proportion_comment = (
-        f"near-golden ratio ({aspect_ratio:.2f}:1, φ={phi})" if is_golden
+        f"near-golden ratio ({aspect_ratio:.2f}:1, φ={phi})"
+        if is_golden
         else f"aspect ratio {aspect_ratio:.2f}:1"
     )
 
@@ -592,9 +672,15 @@ bg_node = world.node_tree.nodes.get('Background')
 bg_node.inputs['Strength'].default_value = 0.15
 """
     q = "'"
-    warm_line = f"bg_node.inputs[{q}Color{q}].default_value = (1.0, 0.95, 0.85, 1.0)  # warm"
-    cool_line = f"bg_node.inputs[{q}Color{q}].default_value = (0.92, 0.95, 1.0, 1.0)  # cool"
-    color_line = warm_line if style in ('traditional', 'cozy', 'farmhouse') else cool_line
+    warm_line = (
+        f"bg_node.inputs[{q}Color{q}].default_value = (1.0, 0.95, 0.85, 1.0)  # warm"
+    )
+    cool_line = (
+        f"bg_node.inputs[{q}Color{q}].default_value = (0.92, 0.95, 1.0, 1.0)  # cool"
+    )
+    color_line = (
+        warm_line if style in ("traditional", "cozy", "farmhouse") else cool_line
+    )
     blender_python += color_line + "\n"
     blender_python += f"""
 
@@ -616,7 +702,7 @@ for i, (x, y) in enumerate([(-W*0.3, -L*0.3), (W*0.3, L*0.3)]):
     fill.data.energy = {int(lumens * 0.15)}
     fill.data.shadow_soft_size = 0.5
 
-print(f"Lighting: {display} | Primary {lumens*0.6:.0f} lm | Fill 2×{lumens*0.15:.0f} lm")
+print(f"Lighting: {display} | Primary {lumens * 0.6:.0f} lm | Fill 2×{lumens * 0.15:.0f} lm")
 """
 
     return {
@@ -625,11 +711,11 @@ print(f"Lighting: {display} | Primary {lumens*0.6:.0f} lm | Fill 2×{lumens*0.15
         "scene_context": f"{style} {display.lower()}, {avg_w:.0f}' × {avg_l:.0f}'",
         "build_plan": [
             f"Calculate required lumens: {area_sqft:.0f} sq ft × 20 lm/sq ft = {lumens:.0f} lm",
-            f"Primary fixture ({primary_fixture}): 60% of lumens = {lumens*0.6:.0f} lm at ceiling center",
-            f"Fill lighting ({', '.join(secondary_fixtures) if secondary_fixtures else 'ambient'}): 30% = {lumens*0.3:.0f} lm distributed",
-            f"Accent/task lighting: 10% = {lumens*0.1:.0f} lm for focal points",
+            f"Primary fixture ({primary_fixture}): 60% of lumens = {lumens * 0.6:.0f} lm at ceiling center",
+            f"Fill lighting ({', '.join(secondary_fixtures) if secondary_fixtures else 'ambient'}): 30% = {lumens * 0.3:.0f} lm distributed",
+            f"Accent/task lighting: 10% = {lumens * 0.1:.0f} lm for focal points",
             f"Color temperature: {'2700-3000K warm' if style in ('traditional', 'cozy', 'farmhouse') else '4000K neutral'} for {style} aesthetic",
-            f"Shadow softening: area lights preferred over point lights for interior realism",
+            "Shadow softening: area lights preferred over point lights for interior realism",
         ],
         "blender_python": blender_python,
         "spatial_notes": (
@@ -654,6 +740,7 @@ print(f"Lighting: {display} | Primary {lumens*0.6:.0f} lm | Fill 2×{lumens*0.15
 
 # ─── Main harvester ────────────────────────────────────────────────────────────
 
+
 class MatterportHarvester:
     def __init__(self, output_dir: Path, pairs_per_room: int = 25):
         self.output_dir = Path(output_dir)
@@ -669,7 +756,9 @@ class MatterportHarvester:
         total = 0
 
         with open(output_file, "w") as f_out:
-            with tqdm(total=len(room_types) * self.pairs_per_room, desc="Matterport pairs") as pbar:
+            with tqdm(
+                total=len(room_types) * self.pairs_per_room, desc="Matterport pairs"
+            ) as pbar:
                 for room_type in room_types:
                     if room_type not in ROOM_TYPE_DATA:
                         log.warning("Unknown room type: %s", room_type)
@@ -694,7 +783,9 @@ class MatterportHarvester:
                     pairs_remaining = self.pairs_per_room - 2
                     for i in range(pairs_remaining):
                         style = styles[i % len(styles)]
-                        pair = generate_spatial_pair(room_type, style, seed=hash((room_type, style, i)))
+                        pair = generate_spatial_pair(
+                            room_type, style, seed=hash((room_type, style, i))
+                        )
                         f_out.write(json.dumps(pair) + "\n")
                         total += 1
                         pbar.update(1)
@@ -724,17 +815,18 @@ class MatterportHarvester:
                 except json.JSONDecodeError:
                     pass
 
-        print(f"\nMatterport dataset stats:")
+        print("\nMatterport dataset stats:")
         print(f"  Total pairs: {total}")
-        print(f"  By room type:")
+        print("  By room type:")
         for rt, count in sorted(room_counts.items(), key=lambda x: -x[1]):
             print(f"    {rt}: {count}")
-        print(f"  By subtype:")
+        print("  By subtype:")
         for st, count in sorted(subtypes.items(), key=lambda x: -x[1]):
             print(f"    {st}: {count}")
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -742,24 +834,32 @@ def main() -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--all", dest="all_rooms", action="store_true",
+        "--all",
+        dest="all_rooms",
+        action="store_true",
         help="Generate pairs for all room types",
     )
     parser.add_argument(
-        "--room-types", nargs="+",
+        "--room-types",
+        nargs="+",
         choices=list(ROOM_TYPE_DATA.keys()),
         help="Specific room types to process",
     )
     parser.add_argument(
-        "--pairs-per-room", type=int, default=25,
+        "--pairs-per-room",
+        type=int,
+        default=25,
         help="Training pairs to generate per room type",
     )
     parser.add_argument(
-        "--output", type=Path,
+        "--output",
+        type=Path,
         default=BASE_DIR / "data" / "integrations" / "matterport",
         help="Output directory",
     )
-    parser.add_argument("--stats", action="store_true", help="Print stats for existing output")
+    parser.add_argument(
+        "--stats", action="store_true", help="Print stats for existing output"
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -783,9 +883,12 @@ def main() -> None:
         sys.exit(1)
 
     total = harvester.harvest(room_types)
-    print(f"\nMatterport harvest complete: {total} spatial pairs → {args.output}/spatial_pairs.jsonl")
+    print(
+        f"\nMatterport harvest complete: {total} spatial pairs → {args.output}/spatial_pairs.jsonl"
+    )
 
 
 if __name__ == "__main__":
     import sys
+
     main()

@@ -35,7 +35,10 @@ def extract_video_id(url: str) -> str:
 def fetch_transcript(video_id: str) -> list[dict]:
     """Returns list of {text, start, duration} segments."""
     fetched = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "en-US"])
-    return [{"text": s["text"], "start": s["start"], "duration": s["duration"]} for s in fetched]
+    return [
+        {"text": s["text"], "start": s["start"], "duration": s["duration"]}
+        for s in fetched
+    ]
 
 
 def merge_segments(segments: list[dict], window_seconds: float = 30.0) -> list[dict]:
@@ -54,11 +57,13 @@ def merge_segments(segments: list[dict], window_seconds: float = 30.0) -> list[d
     for seg in segments:
         seg_end = seg["start"] + seg["duration"]
         if seg["start"] - chunk_start >= window_seconds and current_text:
-            chunks.append({
-                "text": " ".join(current_text).strip(),
-                "start": round(chunk_start, 2),
-                "end": round(chunk_end, 2),
-            })
+            chunks.append(
+                {
+                    "text": " ".join(current_text).strip(),
+                    "start": round(chunk_start, 2),
+                    "end": round(chunk_end, 2),
+                }
+            )
             current_text = []
             chunk_start = seg["start"]
 
@@ -66,11 +71,13 @@ def merge_segments(segments: list[dict], window_seconds: float = 30.0) -> list[d
         chunk_end = seg_end
 
     if current_text:
-        chunks.append({
-            "text": " ".join(current_text).strip(),
-            "start": round(chunk_start, 2),
-            "end": round(chunk_end, 2),
-        })
+        chunks.append(
+            {
+                "text": " ".join(current_text).strip(),
+                "start": round(chunk_start, 2),
+                "end": round(chunk_end, 2),
+            }
+        )
 
     return chunks
 
@@ -118,9 +125,13 @@ def load_urls(path: str) -> list[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch YouTube transcripts for Blender tutorials")
+    parser = argparse.ArgumentParser(
+        description="Fetch YouTube transcripts for Blender tutorials"
+    )
     parser.add_argument("--url", help="Single YouTube URL")
-    parser.add_argument("--urls-file", default="urls.txt", help="File with one URL per line")
+    parser.add_argument(
+        "--urls-file", default="urls.txt", help="File with one URL per line"
+    )
     parser.add_argument("--force", action="store_true", help="Re-fetch even if cached")
     args = parser.parse_args()
 
@@ -128,7 +139,9 @@ def main():
         urls = [args.url]
     else:
         if not Path(args.urls_file).exists():
-            print(f"No urls file found at {args.urls_file}. Pass --url or create urls.txt.")
+            print(
+                f"No urls file found at {args.urls_file}. Pass --url or create urls.txt."
+            )
             sys.exit(1)
         urls = load_urls(args.urls_file)
 

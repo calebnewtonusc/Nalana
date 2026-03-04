@@ -36,24 +36,32 @@ from typing import NamedTuple
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 
-BASE_DIR      = Path(__file__).parents[1]
+BASE_DIR = Path(__file__).parents[1]
 VALIDATED_DIR = BASE_DIR / "data" / "validated"
-DEFAULT_INPUT  = VALIDATED_DIR / "dataset.jsonl"
+DEFAULT_INPUT = VALIDATED_DIR / "dataset.jsonl"
 DEFAULT_OUTPUT = VALIDATED_DIR / "classified.jsonl"
 
 # ─── Task type constants ───────────────────────────────────────────────────────
 
-EXECUTE      = "EXECUTE"
-BUILD        = "BUILD"
-MATERIALIZE  = "MATERIALIZE"
-SIMULATE     = "SIMULATE"
-LIGHT        = "LIGHT"
-UNDERSTAND   = "UNDERSTAND"
-CROSS_SW     = "CROSS_SOFTWARE"
+EXECUTE = "EXECUTE"
+BUILD = "BUILD"
+MATERIALIZE = "MATERIALIZE"
+SIMULATE = "SIMULATE"
+LIGHT = "LIGHT"
+UNDERSTAND = "UNDERSTAND"
+CROSS_SW = "CROSS_SOFTWARE"
 CONVERSATION = "CONVERSATION"
 
-ALL_TYPES = [EXECUTE, BUILD, MATERIALIZE, SIMULATE, LIGHT,
-             UNDERSTAND, CROSS_SW, CONVERSATION]
+ALL_TYPES = [
+    EXECUTE,
+    BUILD,
+    MATERIALIZE,
+    SIMULATE,
+    LIGHT,
+    UNDERSTAND,
+    CROSS_SW,
+    CONVERSATION,
+]
 
 # ─── Pattern dictionaries ──────────────────────────────────────────────────────
 
@@ -112,14 +120,14 @@ CODE_PATTERNS: dict[str, list[str]] = {
         r"light_add.*SPOT",
     ],
     CROSS_SW: [
-        r"cmds\.",      # Maya
-        r"pm\.mel",     # Maya
-        r"c4d\.",       # Cinema 4D
-        r"hou\.",       # Houdini
-        r"rs\.",        # Rhino
-        r"unreal\.",    # Unreal
-        r"fusion\.",    # Fusion 360
-        r"zb\.",        # ZBrush
+        r"cmds\.",  # Maya
+        r"pm\.mel",  # Maya
+        r"c4d\.",  # Cinema 4D
+        r"hou\.",  # Houdini
+        r"rs\.",  # Rhino
+        r"unreal\.",  # Unreal
+        r"fusion\.",  # Fusion 360
+        r"zb\.",  # ZBrush
     ],
 }
 
@@ -173,31 +181,30 @@ VOICE_PATTERNS: dict[str, list[str]] = {
 }
 
 # Single-op indicators (code is one line or one bpy.ops call)
-SINGLE_OP_PATTERN = re.compile(
-    r"^bpy\.ops\.\w+\.\w+\([^)]*\)\s*$",
-    re.MULTILINE
-)
+SINGLE_OP_PATTERN = re.compile(r"^bpy\.ops\.\w+\.\w+\([^)]*\)\s*$", re.MULTILINE)
 
 # Multi-line build indicators
 BUILD_CODE_PATTERNS = [
-    r"\bfor\s+\w+\s+in\b",       # loops
-    r"\bimport\s+bpy\b",         # script-style imports
-    r"\bmat\s*=\s*bpy\.data",    # material creation mid-build
+    r"\bfor\s+\w+\s+in\b",  # loops
+    r"\bimport\s+bpy\b",  # script-style imports
+    r"\bmat\s*=\s*bpy\.data",  # material creation mid-build
     r"\bmodifier_add\b",
     r"\bprimitive_\w+_add\b.*\nprimitive_\w+_add\b",  # multiple primitives
 ]
 
 # Question indicators in voice
-QUESTION_WORDS = re.compile(r"\b(what|why|how|when|where|which|is|are|can|should|does|do)\b",
-                             re.IGNORECASE)
+QUESTION_WORDS = re.compile(
+    r"\b(what|why|how|when|where|which|is|are|can|should|does|do)\b", re.IGNORECASE
+)
 
 
 # ─── Scoring engine ────────────────────────────────────────────────────────────
 
+
 class ClassificationResult(NamedTuple):
-    task_type:   str
-    confidence:  float
-    scores:      dict[str, float]
+    task_type: str
+    confidence: float
+    scores: dict[str, float]
 
 
 def score_text(text: str, patterns: list[str]) -> int:
@@ -214,24 +221,26 @@ def classify_pair(pair: dict) -> ClassificationResult:
     Classify a single training pair (single-turn).
     Returns (task_type, confidence, score_breakdown).
     """
-    voice   = pair.get("voice_command", "") or ""
-    code    = pair.get("blender_python", "") or ""
-    reason  = pair.get("reasoning", "") or ""
+    voice = pair.get("voice_command", "") or ""
+    code = pair.get("blender_python", "") or ""
+    reason = pair.get("reasoning", "") or ""
     op_name = (pair.get("blender_op") or {}).get("op", "") or ""
 
     # Combine relevant text fields for voice-side patterns
     voice_combined = f"{voice} {reason}".lower()
-    code_combined  = f"{code} {op_name}"
+    code_combined = f"{code} {op_name}"
 
     scores: dict[str, float] = {t: 0.0 for t in ALL_TYPES}
 
     # ── Code analysis ────────────────────────────────────────────────────────
     has_code = bool(code.strip()) and not code.strip().startswith("#")
-    lines    = [l for l in code.strip().splitlines() if l.strip() and not l.strip().startswith("#")]
+    lines = [
+        l
+        for l in code.strip().splitlines()
+        if l.strip() and not l.strip().startswith("#")
+    ]
     is_single_op = (
-        has_code
-        and len(lines) == 1
-        and bool(SINGLE_OP_PATTERN.match(code.strip()))
+        has_code and len(lines) == 1 and bool(SINGLE_OP_PATTERN.match(code.strip()))
     )
     is_multiline = has_code and len(lines) > 3
 
@@ -276,8 +285,9 @@ def classify_pair(pair: dict) -> ClassificationResult:
         scores[CONVERSATION] += 1.0
 
     # ── Cross-software boost ──────────────────────────────────────────────────
-    sw_mentions = score_text(voice_combined,
-                             [r"\b(maya|cinema 4d|c4d|houdini|rhino|unreal|zbrush)\b"])
+    sw_mentions = score_text(
+        voice_combined, [r"\b(maya|cinema 4d|c4d|houdini|rhino|unreal|zbrush)\b"]
+    )
     if sw_mentions > 0:
         scores[CROSS_SW] += sw_mentions * 2.5
 
@@ -285,22 +295,22 @@ def classify_pair(pair: dict) -> ClassificationResult:
     total = sum(scores.values()) or 1.0
     normalized = {k: v / total for k, v in scores.items()}
 
-    best_type  = max(normalized, key=lambda k: normalized[k])
+    best_type = max(normalized, key=lambda k: normalized[k])
     best_score = normalized[best_type]
 
     # If all scores are very low, fallback heuristics
     if best_score < 0.2:
         if has_code:
-            best_type  = EXECUTE
+            best_type = EXECUTE
             best_score = 0.5
         else:
-            best_type  = UNDERSTAND
+            best_type = UNDERSTAND
             best_score = 0.4
 
     return ClassificationResult(
-        task_type  = best_type,
-        confidence = round(best_score, 4),
-        scores     = {k: round(v, 4) for k, v in normalized.items()},
+        task_type=best_type,
+        confidence=round(best_score, 4),
+        scores={k: round(v, 4) for k, v in normalized.items()},
     )
 
 
@@ -327,9 +337,9 @@ def classify_conversation(conv: dict) -> ClassificationResult:
         total = sum(scores.values()) or 1.0
         normalized = {k: v / total for k, v in scores.items()}
         return ClassificationResult(
-            task_type  = existing,
-            confidence = round(normalized[existing], 4),
-            scores     = {k: round(v, 4) for k, v in normalized.items()},
+            task_type=existing,
+            confidence=round(normalized[existing], 4),
+            scores={k: round(v, 4) for k, v in normalized.items()},
         )
 
     # For chained pairs without existing task_type, analyze messages
@@ -342,7 +352,7 @@ def classify_conversation(conv: dict) -> ClassificationResult:
 
     # Treat as a pseudo-pair for classification
     pseudo_pair = {
-        "voice_command":  first_user,
+        "voice_command": first_user,
         "blender_python": " ".join(
             m["content"] for m in messages if m["role"] == "assistant"
         )[:2000],
@@ -353,6 +363,7 @@ def classify_conversation(conv: dict) -> ClassificationResult:
 
 
 # ─── Batch processing ──────────────────────────────────────────────────────────
+
 
 def is_conversation_record(record: dict) -> bool:
     """Detect if this is a multi-turn conversation vs single-turn pair."""
@@ -366,7 +377,7 @@ def classify_record(record: dict) -> dict:
     else:
         result = classify_pair(record)
 
-    record["task_type"]       = result.task_type
+    record["task_type"] = result.task_type
     record["task_confidence"] = result.confidence
     # Optionally keep score breakdown for debugging
     # record["_task_scores"] = result.scores
@@ -386,25 +397,25 @@ def load_records(path: Path) -> list[dict]:
 
 def print_stats(records: list[dict]) -> None:
     type_counts: Counter = Counter()
-    conf_sum:    dict[str, float] = {}
-    conf_count:  dict[str, int]   = {}
+    conf_sum: dict[str, float] = {}
+    conf_count: dict[str, int] = {}
 
     for r in records:
         t = r.get("task_type", "UNKNOWN")
         c = r.get("task_confidence", 0.0)
         type_counts[t] += 1
-        conf_sum[t]    = conf_sum.get(t, 0.0) + c
-        conf_count[t]  = conf_count.get(t, 0) + 1
+        conf_sum[t] = conf_sum.get(t, 0.0) + c
+        conf_count[t] = conf_count.get(t, 0) + 1
 
     total = len(records)
-    print(f"\n{'═'*58}")
+    print(f"\n{'═' * 58}")
     print(f"  TASK TYPE DISTRIBUTION  (total: {total:,})")
-    print(f"{'═'*58}")
+    print(f"{'═' * 58}")
     print(f"  {'TYPE':<20} {'COUNT':>8}  {'%':>6}  {'AVG CONF':>10}")
-    print(f"  {'-'*20} {'-'*8}  {'-'*6}  {'-'*10}")
+    print(f"  {'-' * 20} {'-' * 8}  {'-' * 6}  {'-' * 10}")
     for t in ALL_TYPES:
         count = type_counts.get(t, 0)
-        pct   = count / max(total, 1) * 100
+        pct = count / max(total, 1) * 100
         avg_c = (conf_sum.get(t, 0) / conf_count.get(t, 1)) if conf_count.get(t) else 0
         print(f"  {t:<20} {count:>8,}  {pct:>5.1f}%  {avg_c:>9.3f}")
 
@@ -413,25 +424,43 @@ def print_stats(records: list[dict]) -> None:
     if low_conf:
         print(f"\n  Warning: {len(low_conf)} records with confidence < 0.4 (ambiguous)")
 
-    print(f"{'═'*58}\n")
+    print(f"{'═' * 58}\n")
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Classify task_type for all training pairs and conversations"
     )
-    parser.add_argument("--input",  type=Path, default=DEFAULT_INPUT,
-                        help=f"Input JSONL (default: {DEFAULT_INPUT})")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT,
-                        help=f"Output JSONL (default: {DEFAULT_OUTPUT})")
-    parser.add_argument("--stats",  action="store_true",
-                        help="Print distribution stats after classification")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Classify and show stats but do not write output")
-    parser.add_argument("--overwrite-existing", action="store_true",
-                        help="Re-classify records that already have task_type")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=DEFAULT_INPUT,
+        help=f"Input JSONL (default: {DEFAULT_INPUT})",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help=f"Output JSONL (default: {DEFAULT_OUTPUT})",
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Print distribution stats after classification",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Classify and show stats but do not write output",
+    )
+    parser.add_argument(
+        "--overwrite-existing",
+        action="store_true",
+        help="Re-classify records that already have task_type",
+    )
     args = parser.parse_args()
 
     if not args.input.exists():
@@ -444,19 +473,22 @@ def main() -> None:
     print(f"Loaded {len(records):,} records.")
 
     classified = 0
-    skipped    = 0
+    skipped = 0
 
     try:
         from tqdm import tqdm as _tqdm
+
         bar = _tqdm(records, unit="record", desc="Classifying")
     except ImportError:
         bar = records
 
     for record in bar:
         # Skip if already has a high-confidence classification
-        if (not args.overwrite_existing
-                and "task_type" in record
-                and record.get("task_confidence", 0.0) >= 0.5):
+        if (
+            not args.overwrite_existing
+            and "task_type" in record
+            and record.get("task_confidence", 0.0) >= 0.5
+        ):
             skipped += 1
             continue
 
@@ -474,7 +506,7 @@ def main() -> None:
             for r in records:
                 f.write(json.dumps(r) + "\n")
         print(f"Output written: {args.output}")
-        print(f"Next: python train_prep.py && python train.py")
+        print("Next: python train_prep.py && python train.py")
 
 
 if __name__ == "__main__":

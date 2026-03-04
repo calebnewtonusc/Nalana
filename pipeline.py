@@ -106,11 +106,17 @@ def print_stats():
 
 def main():
     parser = argparse.ArgumentParser(description="Nalana dataset pipeline")
-    parser.add_argument("--fetch-only", action="store_true", help="Only fetch transcripts")
+    parser.add_argument(
+        "--fetch-only", action="store_true", help="Only fetch transcripts"
+    )
     parser.add_argument("--synth-only", action="store_true", help="Only run synthesis")
     parser.add_argument("--stats", action="store_true", help="Print dataset statistics")
-    parser.add_argument("--force", action="store_true", help="Re-fetch / re-process cached data")
-    parser.add_argument("--urls-file", default="urls.txt", help="URL list file (default: urls.txt)")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-fetch / re-process cached data"
+    )
+    parser.add_argument(
+        "--urls-file", default="urls.txt", help="URL list file (default: urls.txt)"
+    )
     args = parser.parse_args()
 
     if args.stats:

@@ -10,7 +10,6 @@ Installation:
 Plugin ID: 1000001 (placeholder — register a real ID at developer.maxon.net)
 """
 
-import sys
 import json
 import traceback
 import urllib.request
@@ -22,12 +21,15 @@ try:
     import c4d.gui
     import c4d.plugins
     import c4d.documents
+
     _IN_C4D = True
 except ImportError:
     _IN_C4D = False
+
     # Provide stubs so the module is importable for syntax checking.
     class _Stub:
         pass
+
     c4d = _Stub()
 
 # ---------------------------------------------------------------------------
@@ -121,11 +123,13 @@ def get_c4d_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "cinema4d",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "cinema4d",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -164,7 +168,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"c4d_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "c4d_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def send_command(command: str) -> tuple:
@@ -177,7 +185,7 @@ def send_command(command: str) -> tuple:
     response = None
     try:
         response = call_nalana_api(command, scene_ctx)
-    except Exception as api_err:
+    except Exception:
         try:
             response = call_claude_fallback(command, scene_ctx)
         except Exception as claude_err:
@@ -242,8 +250,18 @@ if _IN_C4D:
             self.AddSeparatorH(0)
 
             # History list
-            self.GroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, cols=1, title="History (last 10)")
-            self.AddListView(ID_HISTORY_LISTVIEW, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, initw=380, inith=160)
+            self.GroupBegin(
+                0,
+                c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT,
+                cols=1,
+                title="History (last 10)",
+            )
+            self.AddListView(
+                ID_HISTORY_LISTVIEW,
+                c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT,
+                initw=380,
+                inith=160,
+            )
             self.GroupEnd()
 
             return True
@@ -269,7 +287,9 @@ if _IN_C4D:
 
         def _on_send(self):
             """Handle the Send button press."""
-            _CONFIG["api_url"] = self.GetString(ID_API_URL_EDITTEXT).strip() or _CONFIG["api_url"]
+            _CONFIG["api_url"] = (
+                self.GetString(ID_API_URL_EDITTEXT).strip() or _CONFIG["api_url"]
+            )
             _CONFIG["api_key"] = self.GetString(ID_API_KEY_EDITTEXT).strip()
 
             command = self.GetString(ID_CMD_EDITTEXT).strip()
@@ -353,7 +373,9 @@ if _IN_C4D:
             help=PLUGIN_HELP,
             dat=NalanaPlugin(),
         )
-        print(f"[Nalana] Cinema 4D plugin v{PLUGIN_VERSION} registered (ID={PLUGIN_ID}).")
+        print(
+            f"[Nalana] Cinema 4D plugin v{PLUGIN_VERSION} registered (ID={PLUGIN_ID})."
+        )
 
 else:
     # Running outside C4D — define stubs so the file is importable.

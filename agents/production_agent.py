@@ -25,10 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
 import random
-import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -83,6 +80,7 @@ PLATFORM_SPECS = {
 # Shared helper
 # ---------------------------------------------------------------------------
 
+
 def _save_pairs(pairs: List[dict], filename: str) -> Path:
     out_path = DATA_DIR / filename
     with open(out_path, "w", encoding="utf-8") as f:
@@ -95,6 +93,7 @@ def _save_pairs(pairs: List[dict], filename: str) -> Path:
 # ---------------------------------------------------------------------------
 # RetopologyAgent
 # ---------------------------------------------------------------------------
+
 
 class RetopologyAgent:
     """
@@ -285,9 +284,32 @@ print("Run QuadriFlow remesh now — these zones will be preserved")
         """Generate 200 retopology training pairs."""
         pairs: List[dict] = []
 
-        face_counts = [500, 1000, 2000, 2500, 3000, 5000, 8000, 10000, 12500, 15000, 20000, 25000, 50000]
+        face_counts = [
+            500,
+            1000,
+            2000,
+            2500,
+            3000,
+            5000,
+            8000,
+            10000,
+            12500,
+            15000,
+            20000,
+            25000,
+            50000,
+        ]
         platforms = list(PLATFORM_SPECS.keys())
-        obj_names = ["hero_character", "weapon", "environment_prop", "vehicle", "tree", "building_piece", "rock_formation", "furniture"]
+        obj_names = [
+            "hero_character",
+            "weapon",
+            "environment_prop",
+            "vehicle",
+            "tree",
+            "building_piece",
+            "rock_formation",
+            "furniture",
+        ]
         zone_options = [
             ["face", "hands"],
             ["eyes", "mouth", "fingers"],
@@ -334,25 +356,31 @@ print("Run QuadriFlow remesh now — these zones will be preserved")
                 face_count = PLATFORM_SPECS[platform]["target_faces"]
 
             if zones and i % 4 == 0:
-                code = self.preserve_topology_zones(obj_name, zones) + "\n" + self.quadriflow_remesh(obj_name, face_count, smooth)
+                code = (
+                    self.preserve_topology_zones(obj_name, zones)
+                    + "\n"
+                    + self.quadriflow_remesh(obj_name, face_count, smooth)
+                )
                 voice = f"{prefix}retopo {obj_name} to {face_count:,} faces, preserve the {', '.join(zones)}"
             else:
                 code = self.quadriflow_remesh(obj_name, face_count, smooth)
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": "RETOPO",
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "production_pipeline_synthetic",
-                "metadata": {
-                    "target_faces": face_count,
-                    "platform": platform,
-                    "smooth": smooth,
-                    "zones_preserved": zones,
-                },
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": "RETOPO",
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "production_pipeline_synthetic",
+                    "metadata": {
+                        "target_faces": face_count,
+                        "platform": platform,
+                        "smooth": smooth,
+                        "zones_preserved": zones,
+                    },
+                }
+            )
 
         _save_pairs(pairs, "retopo_pairs.jsonl")
         return pairs
@@ -361,6 +389,7 @@ print("Run QuadriFlow remesh now — these zones will be preserved")
 # ---------------------------------------------------------------------------
 # UVAgent
 # ---------------------------------------------------------------------------
+
 
 class UVAgent:
     """
@@ -588,7 +617,16 @@ print(f"UDIM layout complete: {{min(len(object_names), udim_count)}} objects acr
 
         margins = [0.005, 0.01, 0.02, 0.03, 0.05]
         angle_limits = [45.0, 60.0, 66.0, 75.0, 85.0]
-        obj_names = ["character", "weapon_rifle", "helmet", "car_body", "building_facade", "tree_trunk", "rock", "crate"]
+        obj_names = [
+            "character",
+            "weapon_rifle",
+            "helmet",
+            "car_body",
+            "building_facade",
+            "tree_trunk",
+            "rock",
+            "crate",
+        ]
         texture_sizes = [512, 1024, 2048, 4096]
         densities = [5.12, 10.24, 20.48, 40.96]
 
@@ -629,7 +667,9 @@ print(f"UDIM layout complete: {{min(len(object_names), udim_count)}} objects acr
                 code = self.suggest_seams(obj_name)
                 task = "UV_UNWRAP"
             elif style == 3:
-                voice = f"{prefix}mark seam candidates on {obj_name} based on hard edges"
+                voice = (
+                    f"{prefix}mark seam candidates on {obj_name} based on hard edges"
+                )
                 code = self.suggest_seams(obj_name)
                 task = "UV_UNWRAP"
             elif style == 4:
@@ -643,14 +683,16 @@ print(f"UDIM layout complete: {{min(len(object_names), udim_count)}} objects acr
                 task = "UV_UNWRAP"
                 obj_name = udim_objects[0]
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": task,
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "production_pipeline_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": task,
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "production_pipeline_synthetic",
+                }
+            )
 
         _save_pairs(pairs, "uv_pairs.jsonl")
         return pairs
@@ -659,6 +701,7 @@ print(f"UDIM layout complete: {{min(len(object_names), udim_count)}} objects acr
 # ---------------------------------------------------------------------------
 # LODAgent
 # ---------------------------------------------------------------------------
+
 
 class LODAgent:
     """
@@ -874,7 +917,16 @@ print("Bake the original object's diffuse onto '{obj_name}_imposter_tex' to comp
         """Generate 100 LOD training pairs."""
         pairs: List[dict] = []
 
-        obj_names = ["tree", "rock_cluster", "building", "vehicle", "character_npc", "prop_barrel", "foliage_bush", "lamp_post"]
+        obj_names = [
+            "tree",
+            "rock_cluster",
+            "building",
+            "vehicle",
+            "character_npc",
+            "prop_barrel",
+            "foliage_bush",
+            "lamp_post",
+        ]
         platform_levels = {
             "mobile": [1.0, 0.5, 0.2],
             "game_pc": [1.0, 0.5, 0.25, 0.1],
@@ -917,14 +969,16 @@ print("Bake the original object's diffuse onto '{obj_name}_imposter_tex' to comp
                 code = self.generate_imposter(obj_name)
                 task = "LOD"
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": task,
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "production_pipeline_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": task,
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "production_pipeline_synthetic",
+                }
+            )
 
         _save_pairs(pairs, "lod_pairs.jsonl")
         return pairs
@@ -933,6 +987,7 @@ print("Bake the original object's diffuse onto '{obj_name}_imposter_tex' to comp
 # ---------------------------------------------------------------------------
 # BakeAgent
 # ---------------------------------------------------------------------------
+
 
 class BakeAgent:
     """
@@ -1196,7 +1251,9 @@ print(f"Batch bake complete: {{sum(1 for r in results if r[0]=='ok')}} / {{len(r
                 code = self.setup_bake(high, low, map_type, tex_size)
                 task = "BAKE"
             elif style == 1:
-                voice = f"{prefix}bake {map_type} at {tex_size}px from {high} onto {low}"
+                voice = (
+                    f"{prefix}bake {map_type} at {tex_size}px from {high} onto {low}"
+                )
                 code = self.setup_bake(high, low, map_type, tex_size)
                 task = "BAKE"
             elif style == 2:
@@ -1209,14 +1266,16 @@ print(f"Batch bake complete: {{sum(1 for r in results if r[0]=='ok')}} / {{len(r
                 code = self.batch_bake(sample_pairs, "/tmp/bakes", tex_size)
                 task = "BAKE"
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": task,
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "production_pipeline_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": task,
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "production_pipeline_synthetic",
+                }
+            )
 
         _save_pairs(pairs, "bake_pairs.jsonl")
         return pairs
@@ -1225,6 +1284,7 @@ print(f"Batch bake complete: {{sum(1 for r in results if r[0]=='ok')}} / {{len(r
 # ---------------------------------------------------------------------------
 # CollisionAgent
 # ---------------------------------------------------------------------------
+
 
 class CollisionAgent:
     """
@@ -1408,7 +1468,16 @@ print(f"Radius: {{radius:.3f}}  |  Height: {{height:.3f}}")
         """Generate 50 collision mesh training pairs."""
         pairs: List[dict] = []
 
-        obj_names = ["crate", "barrel", "car", "building_column", "character_npc", "rock", "tree_trunk", "machine_part"]
+        obj_names = [
+            "crate",
+            "barrel",
+            "car",
+            "building_column",
+            "character_npc",
+            "rock",
+            "tree_trunk",
+            "machine_part",
+        ]
         resolutions = [32, 64, 128]
         max_hulls_options = [4, 6, 8, 12]
 
@@ -1446,14 +1515,16 @@ print(f"Radius: {{radius:.3f}}  |  Height: {{height:.3f}}")
                 code = self.capsule_collision(obj_name)
                 task = "COLLISION"
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": task,
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "production_pipeline_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": task,
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "production_pipeline_synthetic",
+                }
+            )
 
         _save_pairs(pairs, "collision_pairs.jsonl")
         return pairs
@@ -1462,6 +1533,7 @@ print(f"Radius: {{radius:.3f}}  |  Height: {{height:.3f}}")
 # ---------------------------------------------------------------------------
 # ProductionPipeline
 # ---------------------------------------------------------------------------
+
 
 class ProductionPipeline:
     """
@@ -1508,7 +1580,7 @@ class ProductionPipeline:
         return f"""# ============================================================
 # Nalana Production Pipeline — {target_platform.upper()}
 # Object: {obj_name}
-# Platform: {target_platform} | {spec['notes']}
+# Platform: {target_platform} | {spec["notes"]}
 # ============================================================
 
 import bpy
@@ -1572,7 +1644,13 @@ print("=" * 60)
         """
         sequences: List[dict] = []
 
-        obj_names = ["hero_character", "weapon_rifle", "vehicle_car", "environment_rock", "building_facade"]
+        obj_names = [
+            "hero_character",
+            "weapon_rifle",
+            "vehicle_car",
+            "environment_rock",
+            "building_facade",
+        ]
         platforms = list(PLATFORM_SPECS.keys())
 
         for i in range(n_sequences):
@@ -1603,11 +1681,13 @@ print("=" * 60)
                             f"6. Export → FBX\n\n"
                             f"Starting with retopology now."
                         ),
-                        "blender_python": self.retopo.quadriflow_remesh(obj_name, spec["target_faces"]),
+                        "blender_python": self.retopo.quadriflow_remesh(
+                            obj_name, spec["target_faces"]
+                        ),
                     },
                     {
                         "role": "user",
-                        "content": f"Good, retopo looks clean. Now unwrap it.",
+                        "content": "Good, retopo looks clean. Now unwrap it.",
                     },
                     {
                         "role": "assistant",
@@ -1621,7 +1701,9 @@ print("=" * 60)
                     {
                         "role": "assistant",
                         "content": f"Generating LOD0 through LOD{len(spec['lod_levels']) - 1} for {obj_name}.",
-                        "blender_python": self.lod.generate_lod_chain(obj_name, spec["lod_levels"]),
+                        "blender_python": self.lod.generate_lod_chain(
+                            obj_name, spec["lod_levels"]
+                        ),
                     },
                     {
                         "role": "user",
@@ -1630,7 +1712,12 @@ print("=" * 60)
                     {
                         "role": "assistant",
                         "content": f"Baking {spec['texture_size']}px normal map from {obj_name}_highpoly onto {obj_name}.",
-                        "blender_python": self.bake.setup_bake(f"{obj_name}_highpoly", obj_name, "normal", spec["texture_size"]),
+                        "blender_python": self.bake.setup_bake(
+                            f"{obj_name}_highpoly",
+                            obj_name,
+                            "normal",
+                            spec["texture_size"],
+                        ),
                     },
                     {
                         "role": "user",
@@ -1683,6 +1770,7 @@ print("=" * 60)
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Nalana Production Pipeline — retopo, UV, LOD, bake, collision",
@@ -1696,19 +1784,31 @@ Examples:
         """,
     )
 
-    parser.add_argument("--retopo", metavar="OBJ_NAME", help="Retopologize object (requires --target-faces)")
-    parser.add_argument("--target-faces", type=int, default=5000, help="Retopo target face count")
+    parser.add_argument(
+        "--retopo",
+        metavar="OBJ_NAME",
+        help="Retopologize object (requires --target-faces)",
+    )
+    parser.add_argument(
+        "--target-faces", type=int, default=5000, help="Retopo target face count"
+    )
     parser.add_argument("--uv", metavar="OBJ_NAME", help="Smart UV unwrap object")
     parser.add_argument("--margin", type=float, default=0.02, help="UV island margin")
-    parser.add_argument("--full-pipeline", metavar="OBJ_NAME", help="Run full production pipeline")
+    parser.add_argument(
+        "--full-pipeline", metavar="OBJ_NAME", help="Run full production pipeline"
+    )
     parser.add_argument(
         "--platform",
         default="game_pc",
         choices=list(PLATFORM_SPECS.keys()),
         help="Target platform",
     )
-    parser.add_argument("--generate-pairs", action="store_true", help="Generate all training pairs")
-    parser.add_argument("--output", help="Output script path (prints to stdout if not set)")
+    parser.add_argument(
+        "--generate-pairs", action="store_true", help="Generate all training pairs"
+    )
+    parser.add_argument(
+        "--output", help="Output script path (prints to stdout if not set)"
+    )
 
     args = parser.parse_args()
 
@@ -1716,14 +1816,20 @@ Examples:
 
     if args.generate_pairs:
         print("Generating all production training pairs...")
-        retopo_pairs  = pipeline.retopo.generate_training_pairs(200)
-        uv_pairs      = pipeline.uv.generate_training_pairs(200)
-        lod_pairs     = pipeline.lod.generate_training_pairs(100)
-        bake_pairs    = pipeline.bake.generate_training_pairs(100)
-        col_pairs     = pipeline.collision.generate_training_pairs(50)
-        sequences     = pipeline.generate_multi_turn_pipeline_sequence(20)
+        retopo_pairs = pipeline.retopo.generate_training_pairs(200)
+        uv_pairs = pipeline.uv.generate_training_pairs(200)
+        lod_pairs = pipeline.lod.generate_training_pairs(100)
+        bake_pairs = pipeline.bake.generate_training_pairs(100)
+        col_pairs = pipeline.collision.generate_training_pairs(50)
+        sequences = pipeline.generate_multi_turn_pipeline_sequence(20)
 
-        total = len(retopo_pairs) + len(uv_pairs) + len(lod_pairs) + len(bake_pairs) + len(col_pairs)
+        total = (
+            len(retopo_pairs)
+            + len(uv_pairs)
+            + len(lod_pairs)
+            + len(bake_pairs)
+            + len(col_pairs)
+        )
         print(f"\nTotal pairs generated: {total}")
         print(f"  RETOPO: {len(retopo_pairs)}")
         print(f"  UV:     {len(uv_pairs)}")

@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +79,10 @@ def squash_and_stretch(obj_name, squash_factor=0.7, stretch_factor=1.4, impact_f
             "Not synced with velocity — stretch should peak at max speed, squash at max deceleration",
         ],
         "training_pairs": [
-            ("Make the ball squash when it hits the ground", "Ball bounce squash/stretch"),
+            (
+                "Make the ball squash when it hits the ground",
+                "Ball bounce squash/stretch",
+            ),
             ("Add squash and stretch to the character jump", "Character jump S&S"),
         ],
     },
@@ -169,8 +171,14 @@ def stage_shot(camera_name, subject_name, angle_deg=45, distance=5.0):
             "Multiple equal-importance actions happening simultaneously",
         ],
         "training_pairs": [
-            ("Set up a cinematic camera for this character", "Staging camera placement"),
-            ("The scene is confusing — help me stage it better", "Shot clarity improvement"),
+            (
+                "Set up a cinematic camera for this character",
+                "Staging camera placement",
+            ),
+            (
+                "The scene is confusing — help me stage it better",
+                "Shot clarity improvement",
+            ),
         ],
     },
     "straight_ahead_and_pose_to_pose": {
@@ -215,7 +223,10 @@ def set_spline_mode(action_name):
         ],
         "training_pairs": [
             ("Switch the animation to blocking mode", "Pose to pose blocking"),
-            ("Spline all the curves so the motion is smooth", "Stepped to spline transition"),
+            (
+                "Spline all the curves so the motion is smooth",
+                "Stepped to spline transition",
+            ),
         ],
     },
     "follow_through_and_overlapping_action": {
@@ -316,7 +327,10 @@ def set_slow_in(fc, keyframe_index, slow_frames=4):
             "Mismatched ease: position ease-in but rotation stays linear",
         ],
         "training_pairs": [
-            ("Add ease in and ease out to all the keyframes", "Global ease in/out application"),
+            (
+                "Add ease in and ease out to all the keyframes",
+                "Global ease in/out application",
+            ),
             ("The motion is too snappy — add more ease", "Ease smoothing"),
         ],
     },
@@ -427,7 +441,10 @@ def add_arm_swing_to_walk(armature_name, walk_action_name, swing_amplitude=0.2):
         ],
         "training_pairs": [
             ("Add secondary arm swing to the walk cycle", "Walk cycle arm swing"),
-            ("The character looks stiff — add secondary head motion", "Head bob secondary action"),
+            (
+                "The character looks stiff — add secondary head motion",
+                "Head bob secondary action",
+            ),
         ],
     },
     "timing": {
@@ -480,7 +497,10 @@ def get_action_timing_analysis(action_name):
         ],
         "training_pairs": [
             ("Speed up this action by 1.5x", "Action retiming"),
-            ("Make the character feel heavier by adjusting timing", "Weight through timing"),
+            (
+                "Make the character feel heavier by adjusting timing",
+                "Weight through timing",
+            ),
         ],
     },
     "exaggeration": {
@@ -628,13 +648,17 @@ def check_pose_asymmetry(armature_name):
         ],
         "training_pairs": [
             ("Add a line of action to the character's pose", "Line of action"),
-            ("The character is too stiff — add some asymmetry to the pose", "Pose asymmetry"),
+            (
+                "The character is too stiff — add some asymmetry to the pose",
+                "Pose asymmetry",
+            ),
         ],
     },
 }
 
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class RetargetMapping:
@@ -645,6 +669,7 @@ class RetargetMapping:
 
 
 # ─── Keyframe Cleanup ─────────────────────────────────────────────────────────
+
 
 class KeyframeCleanup:
     """Remove jitter, enforce arcs, normalize timing, and apply easing."""
@@ -729,7 +754,9 @@ bpy.context.scene.render.fps = {target_fps}
 print(f"Action '{action_name}' normalized to {target_fps}fps from {{current_fps}}fps")
 """.strip()
 
-    def apply_ease_in_out(self, action_name: str, ease_type: str = "EASE_IN_OUT") -> str:
+    def apply_ease_in_out(
+        self, action_name: str, ease_type: str = "EASE_IN_OUT"
+    ) -> str:
         return f"""
 import bpy
 
@@ -756,6 +783,7 @@ print(f"Ease {ease_type} applied to all curves in '{action_name}'")
 
 
 # ─── Secondary Motion ─────────────────────────────────────────────────────────
+
 
 class SecondaryMotion:
     """Overlap, follow-through, and squash/stretch as code."""
@@ -864,6 +892,7 @@ print("Animate 'Squash' key value on impact frames, 'Stretch' on high-velocity f
 
 # ─── Retargeting Agent ────────────────────────────────────────────────────────
 
+
 class RetargetingAgent:
     """Retarget animations between different rig structures."""
 
@@ -910,7 +939,9 @@ class RetargetingAgent:
         },
     }
 
-    def map_skeleton(self, source_rig_name: str, target_rig_name: str) -> dict[str, str]:
+    def map_skeleton(
+        self, source_rig_name: str, target_rig_name: str
+    ) -> dict[str, str]:
         for map_name, mapping in self.COMMON_BONE_MAPS.items():
             if "mixamo" in source_rig_name.lower():
                 return self.COMMON_BONE_MAPS.get("mixamo_to_rigify", {})
@@ -978,30 +1009,51 @@ print(f"Retargeted '{source_action_name}' to '{target_rig_name}' — mapped {{le
 
 # ─── Lip Sync Agent ───────────────────────────────────────────────────────────
 
+
 class LipSyncAgent:
     """Map audio to facial shape keys for lip sync."""
 
     PHONEME_TO_VISEME: dict[str, str] = {
         # English phonemes → standard viseme groups
-        "p": "M_B_P",        "b": "M_B_P",      "m": "M_B_P",
-        "f": "F_V",          "v": "F_V",
-        "th": "TH",          "dh": "TH",
-        "t": "T_D_N_L",      "d": "T_D_N_L",    "n": "T_D_N_L",    "l": "T_D_N_L",
-        "s": "S_Z",          "z": "S_Z",
-        "sh": "SH_CH_JH",    "ch": "SH_CH_JH",  "jh": "SH_CH_JH",
+        "p": "M_B_P",
+        "b": "M_B_P",
+        "m": "M_B_P",
+        "f": "F_V",
+        "v": "F_V",
+        "th": "TH",
+        "dh": "TH",
+        "t": "T_D_N_L",
+        "d": "T_D_N_L",
+        "n": "T_D_N_L",
+        "l": "T_D_N_L",
+        "s": "S_Z",
+        "z": "S_Z",
+        "sh": "SH_CH_JH",
+        "ch": "SH_CH_JH",
+        "jh": "SH_CH_JH",
         "r": "R",
-        "k": "K_G_NG",       "g": "K_G_NG",     "ng": "K_G_NG",
+        "k": "K_G_NG",
+        "g": "K_G_NG",
+        "ng": "K_G_NG",
         "w": "W_OO",
         "y": "EE",
-        "ih": "EE",          "iy": "EE",
-        "eh": "EH",          "ae": "EH",
-        "aa": "AH",          "ah": "AH",         "ao": "AH",
-        "ow": "OH",          "uh": "OH",
+        "ih": "EE",
+        "iy": "EE",
+        "eh": "EH",
+        "ae": "EH",
+        "aa": "AH",
+        "ah": "AH",
+        "ao": "AH",
+        "ow": "OH",
+        "uh": "OH",
         "uw": "W_OO",
         "er": "ER",
-        "ay": "AH",          "ey": "EH",
-        "aw": "AH",          "oy": "OH",
-        "sil": "REST",       "_": "REST",
+        "ay": "AH",
+        "ey": "EH",
+        "aw": "AH",
+        "oy": "OH",
+        "sil": "REST",
+        "_": "REST",
     }
 
     VISEME_SHAPES = {
@@ -1082,6 +1134,7 @@ if face_obj:
 
 
 # ─── Crowd Agent ──────────────────────────────────────────────────────────────
+
 
 class CrowdAgent:
     """Generate crowd simulations with collision avoidance and timing variation."""
@@ -1172,35 +1225,40 @@ print(f"Crowd timing desynchronized with up to {{int({variation}*100)}}% variati
 
 # ─── Training Pair Generation ──────────────────────────────────────────────────
 
+
 def _principle_explanation_pairs() -> list[dict]:
     """High-value UNDERSTAND pairs for each Disney principle."""
     pairs = []
     for principle_key, data in ANIMATION_PRINCIPLES.items():
         display = principle_key.replace("_", " ").title()
-        pairs.append({
-            "voice_command": f"Explain the {display} animation principle",
-            "task_type": "UNDERSTAND",
-            "scene_context": "animation discussion",
-            "response": (
-                f"Principle #{data['number']}: {display}. "
-                f"{data['description']} "
-                f"Mathematical: {data['mathematical_description']} "
-                f"Common mistakes: {'; '.join(data['common_mistakes'][:2])}"
-            ),
-            "reasoning": f"Disney's 12 Principles — {display} educational explanation",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Explain the {display} animation principle",
+                "task_type": "UNDERSTAND",
+                "scene_context": "animation discussion",
+                "response": (
+                    f"Principle #{data['number']}: {display}. "
+                    f"{data['description']} "
+                    f"Mathematical: {data['mathematical_description']} "
+                    f"Common mistakes: {'; '.join(data['common_mistakes'][:2])}"
+                ),
+                "reasoning": f"Disney's 12 Principles — {display} educational explanation",
+            }
+        )
         # Example application pair
         for cmd, desc in data.get("training_pairs", []):
-            pairs.append({
-                "voice_command": cmd,
-                "task_type": "UNDERSTAND",
-                "scene_context": "character animation selected",
-                "response": (
-                    f"Applying {display} principle. {desc}. "
-                    f"{data['description'][:150]}..."
-                ),
-                "reasoning": f"Practical application of {display}",
-            })
+            pairs.append(
+                {
+                    "voice_command": cmd,
+                    "task_type": "UNDERSTAND",
+                    "scene_context": "character animation selected",
+                    "response": (
+                        f"Applying {display} principle. {desc}. "
+                        f"{data['description'][:150]}..."
+                    ),
+                    "reasoning": f"Practical application of {display}",
+                }
+            )
     return pairs
 
 
@@ -1209,30 +1267,36 @@ def _cleanup_pairs() -> list[dict]:
     pairs = []
     actions = ["walk_cycle", "jump_action", "wave_gesture", "idle_loop", "run_cycle"]
     for action in actions:
-        pairs.append({
-            "voice_command": f"Clean up the jitter in the {action.replace('_', ' ')}",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{action}' action active",
-            "blender_python": cleanup.remove_jitter(action, 0.02),
-            "response": f"Removed micro-jitter keyframes from '{action}' — threshold 0.02 units.",
-            "reasoning": "Jitter removal from f-curves for smoother animation",
-        })
-        pairs.append({
-            "voice_command": f"Add ease in and ease out to the {action.replace('_', ' ')}",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{action}' action active",
-            "blender_python": cleanup.apply_ease_in_out(action, "EASE_IN_OUT"),
-            "response": f"Bezier handles set to AUTO_CLAMPED on all curves in '{action}' — ease in/out applied.",
-            "reasoning": "Ease in/out is Disney principle #6 (Ease In and Ease Out)",
-        })
-        pairs.append({
-            "voice_command": f"Ensure the arcs are correct in the {action.replace('_', ' ')}",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{action}' action active",
-            "blender_python": cleanup.ensure_arcs(action, 0.15),
-            "response": f"Arc correction applied to location curves in '{action}'.",
-            "reasoning": "Arc correction — Disney principle #7 (Arcs)",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Clean up the jitter in the {action.replace('_', ' ')}",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{action}' action active",
+                "blender_python": cleanup.remove_jitter(action, 0.02),
+                "response": f"Removed micro-jitter keyframes from '{action}' — threshold 0.02 units.",
+                "reasoning": "Jitter removal from f-curves for smoother animation",
+            }
+        )
+        pairs.append(
+            {
+                "voice_command": f"Add ease in and ease out to the {action.replace('_', ' ')}",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{action}' action active",
+                "blender_python": cleanup.apply_ease_in_out(action, "EASE_IN_OUT"),
+                "response": f"Bezier handles set to AUTO_CLAMPED on all curves in '{action}' — ease in/out applied.",
+                "reasoning": "Ease in/out is Disney principle #6 (Ease In and Ease Out)",
+            }
+        )
+        pairs.append(
+            {
+                "voice_command": f"Ensure the arcs are correct in the {action.replace('_', ' ')}",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{action}' action active",
+                "blender_python": cleanup.ensure_arcs(action, 0.15),
+                "response": f"Arc correction applied to location curves in '{action}'.",
+                "reasoning": "Arc correction — Disney principle #7 (Arcs)",
+            }
+        )
     return pairs
 
 
@@ -1247,24 +1311,34 @@ def _secondary_motion_pairs() -> list[dict]:
         ("creature_rig", "tail", 12, "Tail follow-through"),
     ]
     for rig, bone, delay, desc in setups:
-        pairs.append({
-            "voice_command": f"Add follow-through to the {bone.replace('_', ' ')} on {rig.replace('_', ' ')}",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{rig}' armature selected",
-            "blender_python": sm.add_overlap(rig, bone, delay),
-            "response": f"{desc} overlap added — {delay} frame delay, 75% amplitude attenuation.",
-            "reasoning": f"Follow-through/overlap — Disney principle #5",
-        })
-    mass_configs = [(0.5, 10.0, "light spring"), (2.0, 5.0, "medium spring"), (10.0, 2.0, "heavy spring")]
+        pairs.append(
+            {
+                "voice_command": f"Add follow-through to the {bone.replace('_', ' ')} on {rig.replace('_', ' ')}",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{rig}' armature selected",
+                "blender_python": sm.add_overlap(rig, bone, delay),
+                "response": f"{desc} overlap added — {delay} frame delay, 75% amplitude attenuation.",
+                "reasoning": "Follow-through/overlap — Disney principle #5",
+            }
+        )
+    mass_configs = [
+        (0.5, 10.0, "light spring"),
+        (2.0, 5.0, "medium spring"),
+        (10.0, 2.0, "heavy spring"),
+    ]
     for mass, stiffness, desc in mass_configs:
-        pairs.append({
-            "voice_command": f"Add spring follow-through to the object (mass {mass}kg)",
-            "task_type": "EXECUTE",
-            "scene_context": "object selected",
-            "blender_python": sm.add_follow_through("selected_object", mass, stiffness),
-            "response": f"Soft body spring ({desc}) applied — mass={mass}kg, stiffness={stiffness}.",
-            "reasoning": "Physical follow-through simulation via soft body dynamics",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Add spring follow-through to the object (mass {mass}kg)",
+                "task_type": "EXECUTE",
+                "scene_context": "object selected",
+                "blender_python": sm.add_follow_through(
+                    "selected_object", mass, stiffness
+                ),
+                "response": f"Soft body spring ({desc}) applied — mass={mass}kg, stiffness={stiffness}.",
+                "reasoning": "Physical follow-through simulation via soft body dynamics",
+            }
+        )
     return pairs
 
 
@@ -1277,14 +1351,16 @@ def _retarget_pairs() -> list[dict]:
         ("mixamo_jump", "mixamo_rig", "custom_rig"),
     ]
     for action, src, tgt in transfers:
-        pairs.append({
-            "voice_command": f"Retarget the {action.replace('_', ' ')} from {src.replace('_', ' ')} to {tgt.replace('_', ' ')}",
-            "task_type": "BUILD",
-            "scene_context": f"'{src}' and '{tgt}' both in scene",
-            "blender_python": agent.retarget_animation(action, src, tgt),
-            "response": f"Animation retargeted to '{tgt}'. Check extreme poses for clamping issues.",
-            "reasoning": "Animation retargeting between different rig structures",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Retarget the {action.replace('_', ' ')} from {src.replace('_', ' ')} to {tgt.replace('_', ' ')}",
+                "task_type": "BUILD",
+                "scene_context": f"'{src}' and '{tgt}' both in scene",
+                "blender_python": agent.retarget_animation(action, src, tgt),
+                "response": f"Animation retargeted to '{tgt}'. Check extreme poses for clamping issues.",
+                "reasoning": "Animation retargeting between different rig structures",
+            }
+        )
     return pairs
 
 
@@ -1297,29 +1373,33 @@ def _lipsync_pairs() -> list[dict]:
         "scene_03_dialogue.mp3",
     ]
     for audio in dialogue_files:
-        pairs.append({
-            "voice_command": f"Sync the lips to {audio}",
-            "task_type": "BUILD",
-            "scene_context": "character rig with face shape keys selected",
-            "blender_python": agent.audio_to_keyframes(audio, "character_rig"),
+        pairs.append(
+            {
+                "voice_command": f"Sync the lips to {audio}",
+                "task_type": "BUILD",
+                "scene_context": "character rig with face shape keys selected",
+                "blender_python": agent.audio_to_keyframes(audio, "character_rig"),
+                "response": (
+                    f"Lip sync setup complete for '{audio}'. Audio strip added to sequencer. "
+                    "Shape key viseme keyframes created at detected phoneme boundaries. "
+                    "Fine-tune timing manually for lip-smacks and brow accents."
+                ),
+                "reasoning": "Audio → phoneme → viseme → shape key keyframe pipeline",
+            }
+        )
+    pairs.append(
+        {
+            "voice_command": "What viseme does the 'sh' phoneme map to?",
+            "task_type": "UNDERSTAND",
+            "scene_context": "lip sync discussion",
             "response": (
-                f"Lip sync setup complete for '{audio}'. Audio strip added to sequencer. "
-                "Shape key viseme keyframes created at detected phoneme boundaries. "
-                "Fine-tune timing manually for lip-smacks and brow accents."
+                "The 'sh' phoneme maps to viseme SH_CH_JH (shared with 'ch' and 'jh'). "
+                "Shape key: 'mouth_sh_ch_jh'. Lips slightly parted, teeth visible, "
+                "tongue raised near palate. Also applies to 'cheese', 'jazz', 'edge'."
             ),
-            "reasoning": "Audio → phoneme → viseme → shape key keyframe pipeline",
-        })
-    pairs.append({
-        "voice_command": "What viseme does the 'sh' phoneme map to?",
-        "task_type": "UNDERSTAND",
-        "scene_context": "lip sync discussion",
-        "response": (
-            f"The 'sh' phoneme maps to viseme SH_CH_JH (shared with 'ch' and 'jh'). "
-            f"Shape key: 'mouth_sh_ch_jh'. Lips slightly parted, teeth visible, "
-            f"tongue raised near palate. Also applies to 'cheese', 'jazz', 'edge'."
-        ),
-        "reasoning": "Phoneme to viseme mapping explanation",
-    })
+            "reasoning": "Phoneme to viseme mapping explanation",
+        }
+    )
     return pairs
 
 
@@ -1332,25 +1412,27 @@ def _crowd_pairs() -> list[dict]:
         (20, (5, 5), "idle", "waiting room"),
     ]
     for n, area, motion, desc in configs:
-        pairs.append({
-            "voice_command": f"Generate a crowd of {n} people for the {desc} scene",
-            "task_type": "BUILD",
-            "scene_context": "empty scene with BaseCharacter object",
-            "blender_python": agent.generate_crowd(n, area, motion),
-            "response": f"Generated {n} crowd agents in {area[0]}m × {area[1]}m area. Motion: {motion}.",
-            "reasoning": f"Crowd simulation for {desc}",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Generate a crowd of {n} people for the {desc} scene",
+                "task_type": "BUILD",
+                "scene_context": "empty scene with BaseCharacter object",
+                "blender_python": agent.generate_crowd(n, area, motion),
+                "response": f"Generated {n} crowd agents in {area[0]}m × {area[1]}m area. Motion: {motion}.",
+                "reasoning": f"Crowd simulation for {desc}",
+            }
+        )
     return pairs
 
 
 def generate_animation_pairs() -> list[dict]:
     all_pairs: list[dict] = []
-    all_pairs += _principle_explanation_pairs()   # 12 * 2-3 = ~30
-    all_pairs += _cleanup_pairs()                 # ~15
-    all_pairs += _secondary_motion_pairs()        # ~8
-    all_pairs += _retarget_pairs()                # ~3
-    all_pairs += _lipsync_pairs()                 # ~4
-    all_pairs += _crowd_pairs()                   # ~3
+    all_pairs += _principle_explanation_pairs()  # 12 * 2-3 = ~30
+    all_pairs += _cleanup_pairs()  # ~15
+    all_pairs += _secondary_motion_pairs()  # ~8
+    all_pairs += _retarget_pairs()  # ~3
+    all_pairs += _lipsync_pairs()  # ~4
+    all_pairs += _crowd_pairs()  # ~3
 
     # ── Additional UNDERSTAND pairs ─────────────────────────────────────────
     extra = [
@@ -1540,11 +1622,22 @@ else:
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Nalana Animation Agent")
-    parser.add_argument("--generate-pairs", action="store_true", help="Generate animation training pairs")
-    parser.add_argument("--cleanup", metavar="ACTION", help="Generate cleanup code for action")
-    parser.add_argument("--secondary-motion", metavar="OBJECT", help="Generate secondary motion code for object")
+    parser.add_argument(
+        "--generate-pairs",
+        action="store_true",
+        help="Generate animation training pairs",
+    )
+    parser.add_argument(
+        "--cleanup", metavar="ACTION", help="Generate cleanup code for action"
+    )
+    parser.add_argument(
+        "--secondary-motion",
+        metavar="OBJECT",
+        help="Generate secondary motion code for object",
+    )
     parser.add_argument("--output", default=str(PAIRS_OUTPUT), help="Output JSONL path")
     args = parser.parse_args()
 

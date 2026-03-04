@@ -1314,13 +1314,15 @@ class ScanProcessor:
         pairs: list[dict[str, Any]] = []
 
         for pair in SCAN_PROCESSING_TRAINING_PAIRS:
-            pairs.append({
-                "input": pair["input"],
-                "output": pair["output"].strip(),
-                "domain": "scan_processing",
-                "source": "curated",
-                "task_type": self._classify_task_type(pair["input"]),
-            })
+            pairs.append(
+                {
+                    "input": pair["input"],
+                    "output": pair["output"].strip(),
+                    "domain": "scan_processing",
+                    "source": "curated",
+                    "task_type": self._classify_task_type(pair["input"]),
+                }
+            )
 
         photogrammetry_scenarios = [
             "outdoor building facade with glass windows",
@@ -1357,26 +1359,27 @@ class ScanProcessor:
                 task = self._rng.choice(lidar_tasks)
                 pairs.append(self.generate_lidar_pair(scan_type, task))
             elif roll < 0.80:
-                source_polys = self._rng.choice([
-                    1_000_000, 5_000_000, 15_000_000, 500_000, 2_000_000
-                ])
+                source_polys = self._rng.choice(
+                    [1_000_000, 5_000_000, 15_000_000, 500_000, 2_000_000]
+                )
                 use_case = self._rng.choice(decimation_use_cases)
                 pairs.append(self.generate_decimation_pair(source_polys, use_case))
             else:
                 ops = self._rng.sample(
-                    [op["name"] for op in self.repair_ops],
-                    k=self._rng.randint(2, 5)
+                    [op["name"] for op in self.repair_ops], k=self._rng.randint(2, 5)
                 )
                 script = self.create_blender_cleanup_script(ops)
                 human_ops = ", ".join(o.replace("_", " ") for o in ops)
-                pairs.append({
-                    "input": f"Clean up this scan: {human_ops}",
-                    "output": script,
-                    "domain": "scan_processing",
-                    "source": "generated",
-                    "task_type": "mesh_cleanup",
-                    "operations": ops,
-                })
+                pairs.append(
+                    {
+                        "input": f"Clean up this scan: {human_ops}",
+                        "output": script,
+                        "domain": "scan_processing",
+                        "source": "generated",
+                        "task_type": "mesh_cleanup",
+                        "operations": ops,
+                    }
+                )
 
         return pairs[:n]
 
@@ -1385,7 +1388,9 @@ class ScanProcessor:
         Generate a photogrammetry processing training pair for the given scenario.
         Returns a dict with 'input', 'output' (Blender Python), and metadata.
         """
-        input_text = f"Clean up my photogrammetry scan of a {scenario} for production use"
+        input_text = (
+            f"Clean up my photogrammetry scan of a {scenario} for production use"
+        )
 
         issues: list[str] = []
         extra_steps: list[str] = []
@@ -1394,11 +1399,16 @@ class ScanProcessor:
             issues.append("reflective surface holes")
             extra_steps.append("fill_holes")
 
-        if any(k in scenario for k in ["outdoor", "terrain", "building", "vehicle", "monument"]):
+        if any(
+            k in scenario
+            for k in ["outdoor", "terrain", "building", "vehicle", "monument"]
+        ):
             issues.append("background floaters")
             extra_steps.append("remove_isolated_vertices")
 
-        if any(k in scenario for k in ["indoor", "artifact", "face", "shoe", "product"]):
+        if any(
+            k in scenario for k in ["indoor", "artifact", "face", "shoe", "product"]
+        ):
             issues.append("scan noise")
             extra_steps.append("smooth_noise")
 
@@ -1439,7 +1449,7 @@ class ScanProcessor:
         input_text = f"Process my {scan_type} LiDAR scan to {task}"
 
         if "bim" in task or "wall" in task or "floor" in task or "room" in task:
-            task_code = '''import bpy
+            task_code = """import bpy
 import bmesh
 
 def classify_architectural_elements(obj_name: str):
@@ -1462,9 +1472,9 @@ def classify_architectural_elements(obj_name: str):
     bm.free()
     print(f"Floors: {len(floors)} | Walls: {len(walls)} | Ceilings: {len(ceilings)}")
 
-classify_architectural_elements("LiDAR_Scan")'''
+classify_architectural_elements("LiDAR_Scan")"""
         elif "vegetation" in task or "foliage" in task or "tree" in task:
-            task_code = '''import bpy
+            task_code = """import bpy
 import bmesh
 
 def remove_vegetation_by_height(obj_name: str, canopy_ratio: float = 0.7):
@@ -1482,22 +1492,23 @@ def remove_vegetation_by_height(obj_name: str, canopy_ratio: float = 0.7):
     bm.free()
     print(f"Removed {len(veg)} vegetation faces above Z={threshold_z:.2f}")
 
-remove_vegetation_by_height("Aerial_LiDAR_Scan")'''
+remove_vegetation_by_height("Aerial_LiDAR_Scan")"""
         else:
-            task_code = self.create_blender_cleanup_script([
-                "remove_isolated_vertices",
-                "merge_duplicate_vertices",
-                "fill_holes",
-                "recalculate_normals",
-            ])
+            task_code = self.create_blender_cleanup_script(
+                [
+                    "remove_isolated_vertices",
+                    "merge_duplicate_vertices",
+                    "fill_holes",
+                    "recalculate_normals",
+                ]
+            )
 
         formats_str = ", ".join(scan_info.get("formats", []))
         issues_str = "; ".join(scan_info.get("common_issues", [])[:2])
         output_code = (
             f"# LiDAR {scan_type} scan processing: {task}\n"
             f"# Typical formats: {formats_str}\n"
-            f"# Common issues: {issues_str}\n\n"
-            + task_code
+            f"# Common issues: {issues_str}\n\n" + task_code
         )
 
         return {
@@ -1522,7 +1533,7 @@ remove_vegetation_by_height("Aerial_LiDAR_Scan")'''
         )
         target_min, target_max = target_info["polygon_range"]
         target_mid = (target_min + target_max) // 2
-        ratio = max(0.001, min(1.0, target_mid / max(source_polys, 1)))
+        max(0.001, min(1.0, target_mid / max(source_polys, 1)))
         use_case_display = target_use_case.replace("_", " ")
         fn_name = f"decimate_for_{target_use_case}"
 
@@ -1747,7 +1758,17 @@ remove_vegetation_by_height("Aerial_LiDAR_Scan")'''
     def _classify_task_type(query: str) -> str:
         """Classify a scan processing query into a task type string."""
         q = query.lower()
-        if any(k in q for k in ["photogrammetry", "photo", "sfm", "meshroom", "realitycapture", "agisoft"]):
+        if any(
+            k in q
+            for k in [
+                "photogrammetry",
+                "photo",
+                "sfm",
+                "meshroom",
+                "realitycapture",
+                "agisoft",
+            ]
+        ):
             return "photogrammetry_cleanup"
         if any(k in q for k in ["lidar", "point cloud", "las", "laz", "e57"]):
             return "lidar_processing"
@@ -1755,15 +1776,34 @@ remove_vegetation_by_height("Aerial_LiDAR_Scan")'''
             return "nerf_to_mesh"
         if any(k in q for k in ["gaussian", "splat", "3dgs", "sugar"]):
             return "gaussian_splat_processing"
-        if any(k in q for k in ["ct scan", "dicom", "mri", "medical", "bone", "surgical"]):
+        if any(
+            k in q for k in ["ct scan", "dicom", "mri", "medical", "bone", "surgical"]
+        ):
             return "medical_scan"
-        if any(k in q for k in ["decimate", "reduce", "polygon count", "lod", "optimize", "optimize"]):
+        if any(
+            k in q
+            for k in [
+                "decimate",
+                "reduce",
+                "polygon count",
+                "lod",
+                "optimize",
+                "optimize",
+            ]
+        ):
             return "decimation"
-        if any(k in q for k in ["watertight", "print", "3d print", "manifold", "printing"]):
+        if any(
+            k in q for k in ["watertight", "print", "3d print", "manifold", "printing"]
+        ):
             return "print_preparation"
-        if any(k in q for k in ["floor plan", "bim", "architectural", "wall", "room", "building"]):
+        if any(
+            k in q
+            for k in ["floor plan", "bim", "architectural", "wall", "room", "building"]
+        ):
             return "scan_to_bim"
-        if any(k in q for k in ["align", "register", "icp", "two scans", "different angle"]):
+        if any(
+            k in q for k in ["align", "register", "icp", "two scans", "different angle"]
+        ):
             return "scan_registration"
         return "mesh_cleanup"
 
@@ -1828,14 +1868,23 @@ def main() -> None:
         print("\nDecimation Targets:")
         for name, info in DECIMATION_TARGETS.items():
             lo, hi = info["polygon_range"]
-            print(f"  {name:<22} {lo:>8,} - {hi:>10,} polys   {info['description'][:55]}")
+            print(
+                f"  {name:<22} {lo:>8,} - {hi:>10,} polys   {info['description'][:55]}"
+            )
 
     if args.demo_cleanup_script:
         all_ops = [op["name"] for op in MESH_REPAIR_OPERATIONS]
         script = processor.create_blender_cleanup_script(all_ops)
         print(script)
 
-    if not any([args.generate_pairs, args.list_scan_types, args.list_targets, args.demo_cleanup_script]):
+    if not any(
+        [
+            args.generate_pairs,
+            args.list_scan_types,
+            args.list_targets,
+            args.demo_cleanup_script,
+        ]
+    ):
         parser.print_help()
 
 

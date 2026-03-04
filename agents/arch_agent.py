@@ -30,12 +30,10 @@ import csv
 import io
 import json
 import math
-import os
 import random
-import sys
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Architecture knowledge base (simplified IBC / ADA reference)
@@ -43,53 +41,53 @@ from typing import Dict, List, Optional, Tuple
 
 ARCH_KNOWLEDGE = {
     "egress": {
-        "max_travel_distance_sprinklered": 250,    # feet
+        "max_travel_distance_sprinklered": 250,  # feet
         "max_travel_distance_unsprinklered": 200,
-        "min_corridor_width": 44,                  # inches
+        "min_corridor_width": 44,  # inches
         "min_stair_width": 44,
-        "max_stair_riser": 7,                      # inches
+        "max_stair_riser": 7,  # inches
         "min_stair_tread": 11,
-        "min_door_width": 32,                      # inches (ADA: 32" clear)
+        "min_door_width": 32,  # inches (ADA: 32" clear)
         "min_door_height": 80,
-        "max_dead_end_corridor": 20,               # feet (IBC)
-        "occupancy_per_exit": 250,                 # persons per required exit
+        "max_dead_end_corridor": 20,  # feet (IBC)
+        "occupancy_per_exit": 250,  # persons per required exit
     },
     "ada": {
-        "min_turning_radius": 60,                  # inches (5ft diameter clear circle)
-        "max_ramp_slope": 1 / 12,                  # rise/run ratio
-        "min_accessible_route_width": 36,          # inches
-        "max_reach_height": 48,                    # inches (forward reach)
-        "min_reach_height": 15,                    # inches
-        "min_parking_stall_width": 96,             # inches (standard accessible)
-        "min_van_accessible_stall_width": 132,     # inches
-        "max_pile_carpet_height": 0.5,             # inches
-        "restroom_turning_space": 60,              # inches diameter
+        "min_turning_radius": 60,  # inches (5ft diameter clear circle)
+        "max_ramp_slope": 1 / 12,  # rise/run ratio
+        "min_accessible_route_width": 36,  # inches
+        "max_reach_height": 48,  # inches (forward reach)
+        "min_reach_height": 15,  # inches
+        "min_parking_stall_width": 96,  # inches (standard accessible)
+        "min_van_accessible_stall_width": 132,  # inches
+        "max_pile_carpet_height": 0.5,  # inches
+        "restroom_turning_space": 60,  # inches diameter
     },
     "spaces": {
-        "min_bedroom_area": 70,                    # sq ft (IBC minimum habitable room)
+        "min_bedroom_area": 70,  # sq ft (IBC minimum habitable room)
         "min_bathroom_area": 35,
         "min_kitchen_area": 50,
-        "standard_ceiling_height": 9,              # feet
+        "standard_ceiling_height": 9,  # feet
         "comfortable_ceiling_height": 10,
-        "min_habitable_ceiling": 7,               # feet (IBC)
-        "min_hallway_width": 36,                   # inches (residential)
-        "min_bedroom_dimension": 7,                # feet (minimum in any direction)
+        "min_habitable_ceiling": 7,  # feet (IBC)
+        "min_hallway_width": 36,  # inches (residential)
+        "min_bedroom_dimension": 7,  # feet (minimum in any direction)
     },
     "structure": {
-        "typical_floor_plate_thickness": 12,       # inches
-        "typical_wall_thickness_exterior": 8,      # inches (stud + sheathing + cladding)
-        "typical_wall_thickness_interior": 5,      # inches (stud + drywall both sides)
-        "typical_column_size_residential": 6,      # inches square
-        "typical_column_size_commercial": 18,      # inches square
-        "standard_bay_size_residential": 20,       # feet
-        "standard_bay_size_commercial": 30,        # feet
+        "typical_floor_plate_thickness": 12,  # inches
+        "typical_wall_thickness_exterior": 8,  # inches (stud + sheathing + cladding)
+        "typical_wall_thickness_interior": 5,  # inches (stud + drywall both sides)
+        "typical_column_size_residential": 6,  # inches square
+        "typical_column_size_commercial": 18,  # inches square
+        "standard_bay_size_residential": 20,  # feet
+        "standard_bay_size_commercial": 30,  # feet
     },
     "parking": {
-        "standard_stall_width": 8.5,              # feet
-        "standard_stall_length": 18,              # feet
-        "drive_aisle_width_90deg": 24,            # feet
+        "standard_stall_width": 8.5,  # feet
+        "standard_stall_length": 18,  # feet
+        "drive_aisle_width_90deg": 24,  # feet
         "drive_aisle_width_60deg": 18,
-        "gross_sf_per_stall": 350,                # sf including drive aisle
+        "gross_sf_per_stall": 350,  # sf including drive aisle
     },
 }
 
@@ -112,24 +110,25 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ArchIssue:
-    code_section: str        # IBC / ADA section reference
-    severity: str            # "error" | "warning" | "info"
-    location: str            # room or element name
+    code_section: str  # IBC / ADA section reference
+    severity: str  # "error" | "warning" | "info"
+    location: str  # room or element name
     description: str
     dimension_actual: float  # actual measurement (in relevant units)
     dimension_required: float
-    units: str               # "ft" | "in" | "sf"
+    units: str  # "ft" | "in" | "sf"
     auto_fixable: bool
 
 
 @dataclass
 class RoomSpec:
     name: str
-    min_area: float          # sq ft
+    min_area: float  # sq ft
     preferred_area: float
-    adjacent_to: List[str]   # preferred room adjacencies
+    adjacent_to: List[str]  # preferred room adjacencies
     daylight_required: bool
     notes: str = ""
 
@@ -137,7 +136,7 @@ class RoomSpec:
 @dataclass
 class LayoutOption:
     option_id: str
-    rooms: List[dict]        # list of {name, area, x, y, width, depth}
+    rooms: List[dict]  # list of {name, area, x, y, width, depth}
     total_area: float
     gross_net_ratio: float
     scores: Dict[str, dict]  # category → {score, notes}
@@ -149,6 +148,7 @@ class LayoutOption:
 # ---------------------------------------------------------------------------
 # FloorplanGenerator
 # ---------------------------------------------------------------------------
+
 
 class FloorplanGenerator:
     """
@@ -162,14 +162,20 @@ class FloorplanGenerator:
     # Room type defaults
     ROOM_DEFAULTS: Dict[str, RoomSpec] = {
         "bedroom": RoomSpec("bedroom", 120, 150, ["bathroom", "closet"], True),
-        "master_bedroom": RoomSpec("master_bedroom", 180, 220, ["master_bathroom", "closet"], True),
+        "master_bedroom": RoomSpec(
+            "master_bedroom", 180, 220, ["master_bathroom", "closet"], True
+        ),
         "bathroom": RoomSpec("bathroom", 50, 65, ["bedroom"], False),
-        "master_bathroom": RoomSpec("master_bathroom", 80, 100, ["master_bedroom"], False),
+        "master_bathroom": RoomSpec(
+            "master_bathroom", 80, 100, ["master_bedroom"], False
+        ),
         "kitchen": RoomSpec("kitchen", 80, 120, ["dining", "pantry"], True),
         "dining": RoomSpec("dining", 100, 130, ["kitchen", "living"], True),
         "living": RoomSpec("living", 150, 200, ["dining", "entry"], True),
         "entry": RoomSpec("entry", 40, 60, ["living", "corridor"], False),
-        "corridor": RoomSpec("corridor", 0, 0, [], False, "Area derived from building geometry"),
+        "corridor": RoomSpec(
+            "corridor", 0, 0, [], False, "Area derived from building geometry"
+        ),
         "closet": RoomSpec("closet", 20, 35, ["bedroom"], False),
         "pantry": RoomSpec("pantry", 25, 40, ["kitchen"], False),
         "laundry": RoomSpec("laundry", 35, 50, ["kitchen", "garage"], False),
@@ -203,11 +209,15 @@ class FloorplanGenerator:
 
         building_depth = total_area / building_width
         width_m = building_width * FT_TO_M
-        depth_m = building_depth * FT_TO_M
-        wall_thickness_m = ARCH_KNOWLEDGE["structure"]["typical_wall_thickness_interior"] * IN_TO_M
+        building_depth * FT_TO_M
+        wall_thickness_m = (
+            ARCH_KNOWLEDGE["structure"]["typical_wall_thickness_interior"] * IN_TO_M
+        )
 
         # Generate room layout (strip-packing: rooms in rows)
-        room_layout = self._layout_rooms(rooms, total_area, building_width, building_depth)
+        room_layout = self._layout_rooms(
+            rooms, total_area, building_width, building_depth
+        )
         rooms_code = self._rooms_to_blender(room_layout, wall_thickness_m, style)
 
         return f"""import bpy
@@ -279,7 +289,7 @@ def create_room(name, x, y, w, d, wall_height=WALL_HEIGHT, wall_thick=WALL_THICK
 {rooms_code}
 
 # ─── Building Outline (exterior walls) ───────────────────────────────────
-ext_thick = {ARCH_KNOWLEDGE['structure']['typical_wall_thickness_exterior'] * IN_TO_M:.4f}
+ext_thick = {ARCH_KNOWLEDGE["structure"]["typical_wall_thickness_exterior"] * IN_TO_M:.4f}
 bpy.ops.mesh.primitive_cube_add(size=1, location=({width_m / 2:.3f}, {-0.1:.3f}, {9 * FT_TO_M / 2:.3f}))
 ext_s = bpy.context.active_object
 ext_s.name = "ext_wall_S"
@@ -319,15 +329,17 @@ print("Units: 1 Blender unit = 1 meter")
                 room_w = min(math.sqrt(area * 1.3), building_width)
                 room_d = area / room_w if room_w > 0 else 10.0
 
-            laid_out.append({
-                "name": room.get("name", f"room_{len(laid_out)}"),
-                "area": area,
-                "x": cursor_x,
-                "y": cursor_y,
-                "width": room_w,
-                "depth": room_d,
-                "adjacent_to": room.get("adjacent_to", []),
-            })
+            laid_out.append(
+                {
+                    "name": room.get("name", f"room_{len(laid_out)}"),
+                    "area": area,
+                    "x": cursor_x,
+                    "y": cursor_y,
+                    "width": room_w,
+                    "depth": room_d,
+                    "adjacent_to": room.get("adjacent_to", []),
+                }
+            )
 
             row_height = max(row_height, room_d)
             cursor_x += room_w + margin
@@ -374,13 +386,19 @@ print("Units: 1 Blender unit = 1 meter")
         # --- Daylight ---
         daylight_score = 7.0
         south_facing_rooms = [r for r in rooms if r.get("faces", "") == orientation]
-        living_or_kitchen = [r for r in south_facing_rooms if r["name"] in {"living", "kitchen", "dining"}]
+        living_or_kitchen = [
+            r
+            for r in south_facing_rooms
+            if r["name"] in {"living", "kitchen", "dining"}
+        ]
         if living_or_kitchen:
             daylight_score = 9.0
             daylight_note = f"South-facing {', '.join(r['name'] for r in living_or_kitchen)} = good passive solar"
         elif not south_facing_rooms:
             daylight_score = 5.0
-            daylight_note = "No rooms specified as south-facing — passive solar potential unclear"
+            daylight_note = (
+                "No rooms specified as south-facing — passive solar potential unclear"
+            )
         else:
             daylight_note = "South-facing rooms present but not primary living spaces"
 
@@ -388,7 +406,11 @@ print("Units: 1 Blender unit = 1 meter")
 
         # --- Circulation ---
         circulation_score = 7.0
-        corridor_rooms = [r for r in rooms if "corridor" in r["name"].lower() or "hall" in r["name"].lower()]
+        corridor_rooms = [
+            r
+            for r in rooms
+            if "corridor" in r["name"].lower() or "hall" in r["name"].lower()
+        ]
         total_circulation_area = sum(r.get("area", 0) for r in corridor_rooms)
         circulation_ratio = total_circulation_area / max(total_area, 1)
         if circulation_ratio > 0.20:
@@ -398,21 +420,28 @@ print("Units: 1 Blender unit = 1 meter")
             circulation_score = 8.0
             circulation_note = f"Efficient circulation ({circulation_ratio:.0%}) — compact plan with direct room access"
         else:
-            circulation_note = f"Circulation at {circulation_ratio:.0%} — acceptable range (10-20%)"
+            circulation_note = (
+                f"Circulation at {circulation_ratio:.0%} — acceptable range (10-20%)"
+            )
         scores["circulation"] = {"score": circulation_score, "notes": circulation_note}
 
         # --- Efficiency (net/gross ratio) ---
         habitable_area = sum(
-            r.get("area", 0) for r in rooms
+            r.get("area", 0)
+            for r in rooms
             if r["name"] not in {"corridor", "hallway", "stair", "mechanical"}
         )
         net_gross = habitable_area / max(total_area, 1)
         if net_gross >= 0.80:
             eff_score = 9.0
-            eff_note = f"Net:gross ratio {net_gross:.0%} — excellent (>80% = very efficient)"
+            eff_note = (
+                f"Net:gross ratio {net_gross:.0%} — excellent (>80% = very efficient)"
+            )
         elif net_gross >= 0.70:
             eff_score = 7.0
-            eff_note = f"Net:gross ratio {net_gross:.0%} — good (75-80% is residential target)"
+            eff_note = (
+                f"Net:gross ratio {net_gross:.0%} — good (75-80% is residential target)"
+            )
         else:
             eff_score = 5.0
             eff_note = f"Net:gross ratio {net_gross:.0%} — below target. Reduce corridor/wall area."
@@ -422,28 +451,31 @@ print("Units: 1 Blender unit = 1 meter")
         egress_score = 8.0
         min_corridor_in = ARCH_KNOWLEDGE["egress"]["min_corridor_width"]
         narrow_corridors = [
-            r for r in rooms
+            r
+            for r in rooms
             if ("corridor" in r["name"].lower() or "hall" in r["name"].lower())
             and r.get("width_in", 48) < min_corridor_in
         ]
         if narrow_corridors:
             egress_score = 4.0
-            egress_note = f"{len(narrow_corridors)} corridor(s) below {min_corridor_in}\" minimum width"
+            egress_note = f'{len(narrow_corridors)} corridor(s) below {min_corridor_in}" minimum width'
         else:
-            egress_note = "Corridors appear code-compliant — verify egress travel distances"
+            egress_note = (
+                "Corridors appear code-compliant — verify egress travel distances"
+            )
         scores["egress"] = {"score": egress_score, "notes": egress_note}
 
         # --- ADA ---
         ada_score = 7.0
         turning_in = ARCH_KNOWLEDGE["ada"]["min_turning_radius"]
         small_bathrooms = [
-            r for r in rooms
-            if "bathroom" in r["name"].lower()
-            and r.get("area", 100) < 50
+            r
+            for r in rooms
+            if "bathroom" in r["name"].lower() and r.get("area", 100) < 50
         ]
         if small_bathrooms:
             ada_score = 3.0
-            ada_note = f"{len(small_bathrooms)} bathroom(s) may be too small for {turning_in}\" turning radius"
+            ada_note = f'{len(small_bathrooms)} bathroom(s) may be too small for {turning_in}" turning radius'
         else:
             ada_note = "Bathroom sizes appear adequate — verify turning radius and fixture clearances"
         scores["ada"] = {"score": ada_score, "notes": ada_note}
@@ -515,11 +547,15 @@ print("Units: 1 Blender unit = 1 meter")
             }
 
             evaluation = self.evaluate_option(layout_dict)
-            options.append({
-                **layout_dict,
-                **evaluation,
-                "blender_python": self.generate_from_program(varied_rooms, total_area, style),
-            })
+            options.append(
+                {
+                    **layout_dict,
+                    **evaluation,
+                    "blender_python": self.generate_from_program(
+                        varied_rooms, total_area, style
+                    ),
+                }
+            )
 
         # Sort by overall score
         options.sort(key=lambda x: x["overall_score"], reverse=True)
@@ -530,11 +566,62 @@ print("Units: 1 Blender unit = 1 meter")
         pairs: List[dict] = []
 
         programs = [
-            {"desc": "studio apartment, 450sf", "rooms": [{"name": "living_bedroom", "min_area": 280}, {"name": "bathroom", "min_area": 45}, {"name": "kitchen", "min_area": 80}], "total_area": 450},
-            {"desc": "1br/1ba apartment, 650sf", "rooms": [{"name": "bedroom", "min_area": 130}, {"name": "bathroom", "min_area": 55}, {"name": "kitchen", "min_area": 90}, {"name": "living", "min_area": 170}], "total_area": 650},
-            {"desc": "2br/1ba apartment, 850sf", "rooms": [{"name": "master_bedroom", "min_area": 160}, {"name": "bedroom", "min_area": 120}, {"name": "bathroom", "min_area": 60}, {"name": "kitchen", "min_area": 95}, {"name": "living", "min_area": 200}], "total_area": 850},
-            {"desc": "2br/2ba apartment, 1100sf", "rooms": [{"name": "master_bedroom", "min_area": 180}, {"name": "bedroom", "min_area": 130}, {"name": "master_bathroom", "min_area": 80}, {"name": "bathroom", "min_area": 55}, {"name": "kitchen", "min_area": 110}, {"name": "living", "min_area": 220}], "total_area": 1100},
-            {"desc": "3br/2ba single family, 1800sf", "rooms": [{"name": "master_bedroom", "min_area": 220}, {"name": "bedroom", "min_area": 150}, {"name": "bedroom", "min_area": 140}, {"name": "master_bathroom", "min_area": 90}, {"name": "bathroom", "min_area": 65}, {"name": "kitchen", "min_area": 130}, {"name": "dining", "min_area": 140}, {"name": "living", "min_area": 240}], "total_area": 1800},
+            {
+                "desc": "studio apartment, 450sf",
+                "rooms": [
+                    {"name": "living_bedroom", "min_area": 280},
+                    {"name": "bathroom", "min_area": 45},
+                    {"name": "kitchen", "min_area": 80},
+                ],
+                "total_area": 450,
+            },
+            {
+                "desc": "1br/1ba apartment, 650sf",
+                "rooms": [
+                    {"name": "bedroom", "min_area": 130},
+                    {"name": "bathroom", "min_area": 55},
+                    {"name": "kitchen", "min_area": 90},
+                    {"name": "living", "min_area": 170},
+                ],
+                "total_area": 650,
+            },
+            {
+                "desc": "2br/1ba apartment, 850sf",
+                "rooms": [
+                    {"name": "master_bedroom", "min_area": 160},
+                    {"name": "bedroom", "min_area": 120},
+                    {"name": "bathroom", "min_area": 60},
+                    {"name": "kitchen", "min_area": 95},
+                    {"name": "living", "min_area": 200},
+                ],
+                "total_area": 850,
+            },
+            {
+                "desc": "2br/2ba apartment, 1100sf",
+                "rooms": [
+                    {"name": "master_bedroom", "min_area": 180},
+                    {"name": "bedroom", "min_area": 130},
+                    {"name": "master_bathroom", "min_area": 80},
+                    {"name": "bathroom", "min_area": 55},
+                    {"name": "kitchen", "min_area": 110},
+                    {"name": "living", "min_area": 220},
+                ],
+                "total_area": 1100,
+            },
+            {
+                "desc": "3br/2ba single family, 1800sf",
+                "rooms": [
+                    {"name": "master_bedroom", "min_area": 220},
+                    {"name": "bedroom", "min_area": 150},
+                    {"name": "bedroom", "min_area": 140},
+                    {"name": "master_bathroom", "min_area": 90},
+                    {"name": "bathroom", "min_area": 65},
+                    {"name": "kitchen", "min_area": 130},
+                    {"name": "dining", "min_area": 140},
+                    {"name": "living", "min_area": 240},
+                ],
+                "total_area": 1800,
+            },
         ]
 
         styles = ["modern", "traditional", "open_plan", "minimalist", "industrial"]
@@ -583,25 +670,32 @@ print("Units: 1 Blender unit = 1 meter")
 
             if n_options > 1:
                 options = self.generate_options(prog, n_options)
-                code = "\n\n# --- OPTION A (Best score) ---\n" + options[0]["blender_python"]
+                code = (
+                    "\n\n# --- OPTION A (Best score) ---\n"
+                    + options[0]["blender_python"]
+                )
                 if len(options) > 1:
                     code += "\n\n# --- OPTION B ---\n" + options[1]["blender_python"]
             else:
-                code = self.generate_from_program(prog["rooms"], prog["total_area"], style)
+                code = self.generate_from_program(
+                    prog["rooms"], prog["total_area"], style
+                )
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": "ARCH_FLOORPLAN",
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "arch_agent_synthetic",
-                "metadata": {
-                    "program": prog["desc"],
-                    "style": style,
-                    "n_options": n_options,
-                },
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": "ARCH_FLOORPLAN",
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "arch_agent_synthetic",
+                    "metadata": {
+                        "program": prog["desc"],
+                        "style": style,
+                        "n_options": n_options,
+                    },
+                }
+            )
 
         return pairs
 
@@ -609,6 +703,7 @@ print("Units: 1 Blender unit = 1 meter")
 # ---------------------------------------------------------------------------
 # SectionElevationGenerator
 # ---------------------------------------------------------------------------
+
 
 class SectionElevationGenerator:
     """
@@ -637,9 +732,9 @@ class SectionElevationGenerator:
 
         # Map cut plane to Blender bisect normal
         plane_normals = {
-            "XY": f"(0, 0, 1)",          # horizontal cut (plan)
-            "XZ": f"(0, 1, 0)",          # section through Y axis
-            "YZ": f"(1, 0, 0)",          # section through X axis
+            "XY": "(0, 0, 1)",  # horizontal cut (plan)
+            "XZ": "(0, 1, 0)",  # section through Y axis
+            "YZ": "(1, 0, 0)",  # section through X axis
         }
         normal = plane_normals.get(cut_plane, "(0, 1, 0)")
 
@@ -711,10 +806,10 @@ print("Export section objects as SVG via: File > Export > Scalable Vector Graphi
         """
         # Camera angles for each elevation
         camera_angles = {
-            "North":  (0, 0, 0),
-            "South":  (0, 0, math.pi),
-            "East":   (0, 0, -math.pi / 2),
-            "West":   (0, 0, math.pi / 2),
+            "North": (0, 0, 0),
+            "South": (0, 0, math.pi),
+            "East": (0, 0, -math.pi / 2),
+            "West": (0, 0, math.pi / 2),
         }
         rx, ry, rz = camera_angles.get(face_direction, camera_angles["South"])
         cam_name = f"Elevation_{face_direction}"
@@ -840,7 +935,13 @@ print(f"Width: {{width * {M_TO_FT:.4f}:.1f}}ft  |  Height: {{height * {M_TO_FT:.
         """Generate 100 section/elevation training pairs."""
         pairs: List[dict] = []
 
-        obj_names = ["building_model", "residence", "office_building", "apartment_block", "retail_unit"]
+        obj_names = [
+            "building_model",
+            "residence",
+            "office_building",
+            "apartment_block",
+            "retail_unit",
+        ]
         cut_planes = ["XZ", "YZ", "XY"]
         cut_heights = [4, 5, 6, 8, 10, 12]
         face_directions = ["North", "South", "East", "West"]
@@ -882,14 +983,16 @@ print(f"Width: {{width * {M_TO_FT:.4f}:.1f}}ft  |  Height: {{height * {M_TO_FT:.
                 code = self.annotate_dimensions(f"{obj_name}_section_{cut_height}ft")
                 task = "ARCH_SECTION"
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": task,
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "arch_agent_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": task,
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "arch_agent_synthetic",
+                }
+            )
 
         return pairs
 
@@ -897,6 +1000,7 @@ print(f"Width: {{width * {M_TO_FT:.4f}:.1f}}ft  |  Height: {{height * {M_TO_FT:.
 # ---------------------------------------------------------------------------
 # CodeChecker
 # ---------------------------------------------------------------------------
+
 
 class CodeChecker:
     """
@@ -912,7 +1016,9 @@ class CodeChecker:
         issues: List[ArchIssue] = []
         egress = ARCH_KNOWLEDGE["egress"]
 
-        corridors = [o for o in scene_objects if o.get("type") in {"corridor", "hallway"}]
+        corridors = [
+            o for o in scene_objects if o.get("type") in {"corridor", "hallway"}
+        ]
         doors = [o for o in scene_objects if o.get("type") == "door"]
         occupancy = sum(o.get("occupancy", 0) for o in scene_objects)
         sprinklered = any(o.get("sprinklers", False) for o in scene_objects)
@@ -926,60 +1032,68 @@ class CodeChecker:
         for obj in corridors:
             width_in = obj.get("width_ft", 4.0) * 12  # convert ft to inches
             if width_in < egress["min_corridor_width"]:
-                issues.append(ArchIssue(
-                    code_section="IBC 1005.1",
-                    severity="error",
-                    location=obj["name"],
-                    description=f"Corridor '{obj['name']}' is {width_in:.0f}\" wide — below {egress['min_corridor_width']}\" minimum",
-                    dimension_actual=width_in,
-                    dimension_required=egress["min_corridor_width"],
-                    units="in",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="IBC 1005.1",
+                        severity="error",
+                        location=obj["name"],
+                        description=f"Corridor '{obj['name']}' is {width_in:.0f}\" wide — below {egress['min_corridor_width']}\" minimum",
+                        dimension_actual=width_in,
+                        dimension_required=egress["min_corridor_width"],
+                        units="in",
+                        auto_fixable=False,
+                    )
+                )
 
             travel = obj.get("travel_distance_ft", 0)
             if travel > max_travel:
-                issues.append(ArchIssue(
-                    code_section="IBC 1017.2",
-                    severity="error",
-                    location=obj["name"],
-                    description=(
-                        f"Travel distance {travel}ft exceeds {max_travel}ft maximum "
-                        f"({'sprinklered' if sprinklered else 'unsprinklered'})"
-                    ),
-                    dimension_actual=travel,
-                    dimension_required=max_travel,
-                    units="ft",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="IBC 1017.2",
+                        severity="error",
+                        location=obj["name"],
+                        description=(
+                            f"Travel distance {travel}ft exceeds {max_travel}ft maximum "
+                            f"({'sprinklered' if sprinklered else 'unsprinklered'})"
+                        ),
+                        dimension_actual=travel,
+                        dimension_required=max_travel,
+                        units="ft",
+                        auto_fixable=False,
+                    )
+                )
 
         for door in doors:
             width_in = door.get("width_in", 36)
             if width_in < egress["min_door_width"]:
-                issues.append(ArchIssue(
-                    code_section="IBC 1010.1.1 / ADA 60.3",
-                    severity="error",
-                    location=door["name"],
-                    description=f"Door '{door['name']}' is {width_in}\" clear — below {egress['min_door_width']}\" minimum",
-                    dimension_actual=width_in,
-                    dimension_required=egress["min_door_width"],
-                    units="in",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="IBC 1010.1.1 / ADA 60.3",
+                        severity="error",
+                        location=door["name"],
+                        description=f"Door '{door['name']}' is {width_in}\" clear — below {egress['min_door_width']}\" minimum",
+                        dimension_actual=width_in,
+                        dimension_required=egress["min_door_width"],
+                        units="in",
+                        auto_fixable=False,
+                    )
+                )
 
         required_exits = math.ceil(occupancy / egress["occupancy_per_exit"])
         exit_count = sum(1 for o in scene_objects if o.get("type") == "exit")
         if exit_count < required_exits:
-            issues.append(ArchIssue(
-                code_section="IBC 1006.3",
-                severity="error",
-                location="BUILDING",
-                description=f"{occupancy} occupants require {required_exits} exits — only {exit_count} provided",
-                dimension_actual=exit_count,
-                dimension_required=required_exits,
-                units="count",
-                auto_fixable=False,
-            ))
+            issues.append(
+                ArchIssue(
+                    code_section="IBC 1006.3",
+                    severity="error",
+                    location="BUILDING",
+                    description=f"{occupancy} occupants require {required_exits} exits — only {exit_count} provided",
+                    dimension_actual=exit_count,
+                    dimension_required=required_exits,
+                    units="count",
+                    auto_fixable=False,
+                )
+            )
 
         return issues
 
@@ -988,60 +1102,73 @@ class CodeChecker:
         issues: List[ArchIssue] = []
         ada = ARCH_KNOWLEDGE["ada"]
 
-        bathrooms = [o for o in scene_objects if "bathroom" in o.get("name", "").lower() or "restroom" in o.get("name", "").lower()]
+        bathrooms = [
+            o
+            for o in scene_objects
+            if "bathroom" in o.get("name", "").lower()
+            or "restroom" in o.get("name", "").lower()
+        ]
         for room in bathrooms:
             area_sf = room.get("area_sf", 100)
-            min_turning_sf = math.pi * (ada["min_turning_radius"] / 12 / 2) ** 2  # approximate
+            min_turning_sf = (
+                math.pi * (ada["min_turning_radius"] / 12 / 2) ** 2
+            )  # approximate
             if area_sf < min_turning_sf:
-                issues.append(ArchIssue(
-                    code_section="ADA 603.2.1",
-                    severity="error",
-                    location=room["name"],
-                    description=(
-                        f"Bathroom '{room['name']}' ({area_sf:.0f} sf) may not accommodate "
-                        f"{ada['min_turning_radius']}\" turning radius ({min_turning_sf:.0f} sf minimum)"
-                    ),
-                    dimension_actual=area_sf,
-                    dimension_required=min_turning_sf,
-                    units="sf",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="ADA 603.2.1",
+                        severity="error",
+                        location=room["name"],
+                        description=(
+                            f"Bathroom '{room['name']}' ({area_sf:.0f} sf) may not accommodate "
+                            f'{ada["min_turning_radius"]}" turning radius ({min_turning_sf:.0f} sf minimum)'
+                        ),
+                        dimension_actual=area_sf,
+                        dimension_required=min_turning_sf,
+                        units="sf",
+                        auto_fixable=False,
+                    )
+                )
 
         ramps = [o for o in scene_objects if o.get("type") == "ramp"]
         for ramp in ramps:
             slope = ramp.get("slope", 0)
             if slope > ada["max_ramp_slope"]:
-                issues.append(ArchIssue(
-                    code_section="ADA 405.2",
-                    severity="error",
-                    location=ramp["name"],
-                    description=(
-                        f"Ramp '{ramp['name']}' slope {slope:.3f} ({slope * 100:.1f}%) "
-                        f"exceeds ADA maximum 1:12 ({ada['max_ramp_slope'] * 100:.1f}%)"
-                    ),
-                    dimension_actual=slope,
-                    dimension_required=ada["max_ramp_slope"],
-                    units="ratio",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="ADA 405.2",
+                        severity="error",
+                        location=ramp["name"],
+                        description=(
+                            f"Ramp '{ramp['name']}' slope {slope:.3f} ({slope * 100:.1f}%) "
+                            f"exceeds ADA maximum 1:12 ({ada['max_ramp_slope'] * 100:.1f}%)"
+                        ),
+                        dimension_actual=slope,
+                        dimension_required=ada["max_ramp_slope"],
+                        units="ratio",
+                        auto_fixable=False,
+                    )
+                )
 
         routes = [o for o in scene_objects if o.get("accessible_route")]
         for route in routes:
             width_in = route.get("width_in", 44)
             if width_in < ada["min_accessible_route_width"]:
-                issues.append(ArchIssue(
-                    code_section="ADA 403.5.1",
-                    severity="error",
-                    location=route["name"],
-                    description=(
-                        f"Accessible route '{route['name']}' is {width_in}\" — "
-                        f"below {ada['min_accessible_route_width']}\" minimum"
-                    ),
-                    dimension_actual=width_in,
-                    dimension_required=ada["min_accessible_route_width"],
-                    units="in",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="ADA 403.5.1",
+                        severity="error",
+                        location=route["name"],
+                        description=(
+                            f"Accessible route '{route['name']}' is {width_in}\" — "
+                            f'below {ada["min_accessible_route_width"]}" minimum'
+                        ),
+                        dimension_actual=width_in,
+                        dimension_required=ada["min_accessible_route_width"],
+                        units="in",
+                        auto_fixable=False,
+                    )
+                )
 
         return issues
 
@@ -1064,54 +1191,63 @@ class CodeChecker:
             for req_type, min_area in size_reqs.items():
                 if req_type in room_type.lower() or req_type in room_name.lower():
                     if area < min_area:
-                        issues.append(ArchIssue(
-                            code_section="IBC 1208.2",
-                            severity="error",
-                            location=room_name,
-                            description=(
-                                f"{room_type or room_name} is {area:.0f} sf — "
-                                f"below {min_area} sf minimum"
-                            ),
-                            dimension_actual=area,
-                            dimension_required=min_area,
-                            units="sf",
-                            auto_fixable=False,
-                        ))
+                        issues.append(
+                            ArchIssue(
+                                code_section="IBC 1208.2",
+                                severity="error",
+                                location=room_name,
+                                description=(
+                                    f"{room_type or room_name} is {area:.0f} sf — "
+                                    f"below {min_area} sf minimum"
+                                ),
+                                dimension_actual=area,
+                                dimension_required=min_area,
+                                units="sf",
+                                auto_fixable=False,
+                            )
+                        )
 
             # Minimum dimension check
             min_dim = room_data.get("min_dimension_ft", 0)
-            if "bedroom" in room_name.lower() and min_dim < spaces["min_bedroom_dimension"]:
+            if (
+                "bedroom" in room_name.lower()
+                and min_dim < spaces["min_bedroom_dimension"]
+            ):
                 if min_dim > 0:
-                    issues.append(ArchIssue(
-                        code_section="IBC 1208.1",
-                        severity="error",
-                        location=room_name,
-                        description=(
-                            f"Bedroom '{room_name}' has {min_dim}ft minimum dimension — "
-                            f"below {spaces['min_bedroom_dimension']}ft required"
-                        ),
-                        dimension_actual=min_dim,
-                        dimension_required=spaces["min_bedroom_dimension"],
-                        units="ft",
-                        auto_fixable=False,
-                    ))
+                    issues.append(
+                        ArchIssue(
+                            code_section="IBC 1208.1",
+                            severity="error",
+                            location=room_name,
+                            description=(
+                                f"Bedroom '{room_name}' has {min_dim}ft minimum dimension — "
+                                f"below {spaces['min_bedroom_dimension']}ft required"
+                            ),
+                            dimension_actual=min_dim,
+                            dimension_required=spaces["min_bedroom_dimension"],
+                            units="ft",
+                            auto_fixable=False,
+                        )
+                    )
 
             # Ceiling height
             ceiling_ht = room_data.get("ceiling_height_ft", 9)
             if ceiling_ht < spaces["min_habitable_ceiling"]:
-                issues.append(ArchIssue(
-                    code_section="IBC 1208.2",
-                    severity="error",
-                    location=room_name,
-                    description=(
-                        f"Room '{room_name}' has {ceiling_ht}ft ceiling — "
-                        f"below {spaces['min_habitable_ceiling']}ft minimum"
-                    ),
-                    dimension_actual=ceiling_ht,
-                    dimension_required=spaces["min_habitable_ceiling"],
-                    units="ft",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    ArchIssue(
+                        code_section="IBC 1208.2",
+                        severity="error",
+                        location=room_name,
+                        description=(
+                            f"Room '{room_name}' has {ceiling_ht}ft ceiling — "
+                            f"below {spaces['min_habitable_ceiling']}ft minimum"
+                        ),
+                        dimension_actual=ceiling_ht,
+                        dimension_required=spaces["min_habitable_ceiling"],
+                        units="ft",
+                        auto_fixable=False,
+                    )
+                )
 
         return issues
 
@@ -1126,57 +1262,65 @@ class CodeChecker:
         name = stair_object.get("name", "Stair")
 
         if riser > egress["max_stair_riser"]:
-            issues.append(ArchIssue(
-                code_section="IBC 1011.5.2",
-                severity="error",
-                location=name,
-                description=f"Stair riser {riser}\" exceeds {egress['max_stair_riser']}\" maximum",
-                dimension_actual=riser,
-                dimension_required=egress["max_stair_riser"],
-                units="in",
-                auto_fixable=False,
-            ))
+            issues.append(
+                ArchIssue(
+                    code_section="IBC 1011.5.2",
+                    severity="error",
+                    location=name,
+                    description=f'Stair riser {riser}" exceeds {egress["max_stair_riser"]}" maximum',
+                    dimension_actual=riser,
+                    dimension_required=egress["max_stair_riser"],
+                    units="in",
+                    auto_fixable=False,
+                )
+            )
 
         if tread < egress["min_stair_tread"]:
-            issues.append(ArchIssue(
-                code_section="IBC 1011.5.2",
-                severity="error",
-                location=name,
-                description=f"Stair tread {tread}\" is below {egress['min_stair_tread']}\" minimum",
-                dimension_actual=tread,
-                dimension_required=egress["min_stair_tread"],
-                units="in",
-                auto_fixable=False,
-            ))
+            issues.append(
+                ArchIssue(
+                    code_section="IBC 1011.5.2",
+                    severity="error",
+                    location=name,
+                    description=f'Stair tread {tread}" is below {egress["min_stair_tread"]}" minimum',
+                    dimension_actual=tread,
+                    dimension_required=egress["min_stair_tread"],
+                    units="in",
+                    auto_fixable=False,
+                )
+            )
 
         if width < egress["min_stair_width"]:
-            issues.append(ArchIssue(
-                code_section="IBC 1011.2",
-                severity="error",
-                location=name,
-                description=f"Stair width {width}\" is below {egress['min_stair_width']}\" minimum",
-                dimension_actual=width,
-                dimension_required=egress["min_stair_width"],
-                units="in",
-                auto_fixable=False,
-            ))
+            issues.append(
+                ArchIssue(
+                    code_section="IBC 1011.2",
+                    severity="error",
+                    location=name,
+                    description=f'Stair width {width}" is below {egress["min_stair_width"]}" minimum',
+                    dimension_actual=width,
+                    dimension_required=egress["min_stair_width"],
+                    units="in",
+                    auto_fixable=False,
+                )
+            )
 
         # 7-11 rule: riser + tread should = 17-18 for comfort
         seven_eleven = riser + tread
         if not (17 <= seven_eleven <= 18):
-            issues.append(ArchIssue(
-                code_section="COMFORT (not code)",
-                severity="warning",
-                location=name,
-                description=(
-                    f"Riser ({riser}\") + Tread ({tread}\") = {seven_eleven}\" — "
-                    f"target 17-18\" for ergonomic comfort (7+11 rule)"
-                ),
-                dimension_actual=seven_eleven,
-                dimension_required=18,
-                units="in",
-                auto_fixable=False,
-            ))
+            issues.append(
+                ArchIssue(
+                    code_section="COMFORT (not code)",
+                    severity="warning",
+                    location=name,
+                    description=(
+                        f'Riser ({riser}") + Tread ({tread}") = {seven_eleven}" — '
+                        f'target 17-18" for ergonomic comfort (7+11 rule)'
+                    ),
+                    dimension_actual=seven_eleven,
+                    dimension_required=18,
+                    units="in",
+                    auto_fixable=False,
+                )
+            )
 
         return issues
 
@@ -1184,7 +1328,11 @@ class CodeChecker:
         """
         Run all code checks and return a consolidated compliance report.
         """
-        rooms = {o["name"]: o for o in scene_objects if o.get("type") in {"bedroom", "bathroom", "kitchen", "living", "corridor"}}
+        rooms = {
+            o["name"]: o
+            for o in scene_objects
+            if o.get("type") in {"bedroom", "bathroom", "kitchen", "living", "corridor"}
+        }
         stairs = [o for o in scene_objects if o.get("type") == "stair"]
 
         all_issues = []
@@ -1262,7 +1410,7 @@ class CodeChecker:
             "IBC egress requirements (minimum corridor widths, maximum travel distances, exit counts) "
             "are the most commonly failed checks in design development.",
             "ADA compliance is both a legal requirement and ethical design standard. "
-            "The 60\" turning radius in restrooms and 1:12 maximum ramp slope are the most frequently violated provisions.",
+            'The 60" turning radius in restrooms and 1:12 maximum ramp slope are the most frequently violated provisions.',
             "Room size minimums protect habitability. IBC 1208 sets the minimum bedroom at 70sf with 7ft minimum dimension. "
             "Many architects design to comfort standards (120sf+) but the code floor matters for certification.",
             "Stair geometry is life-safety critical. "
@@ -1278,15 +1426,17 @@ class CodeChecker:
             voice = random.choice(prefixes) + random.choice(template_list)
             code = code_templates[check_type]
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": "ARCH_CODE_CHECK",
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "arch_agent_synthetic",
-                "metadata": {"check_type": check_type},
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": "ARCH_CODE_CHECK",
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "arch_agent_synthetic",
+                    "metadata": {"check_type": check_type},
+                }
+            )
 
         return pairs
 
@@ -1294,6 +1444,7 @@ class CodeChecker:
 # ---------------------------------------------------------------------------
 # ScheduleGenerator
 # ---------------------------------------------------------------------------
+
 
 class ScheduleGenerator:
     """
@@ -1305,7 +1456,19 @@ class ScheduleGenerator:
         """Generate a CSV-formatted door schedule from scene objects."""
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Door ID", "Location", "Width (in)", "Height (in)", "Type", "Frame", "Hardware", "Fire Rating", "ADA Compliant"])
+        writer.writerow(
+            [
+                "Door ID",
+                "Location",
+                "Width (in)",
+                "Height (in)",
+                "Type",
+                "Frame",
+                "Hardware",
+                "Fire Rating",
+                "ADA Compliant",
+            ]
+        )
 
         door_count = 1
         for obj in scene_objects:
@@ -1314,17 +1477,19 @@ class ScheduleGenerator:
             width_in = obj.get("width_in", 36)
             height_in = obj.get("height_in", 80)
             ada_ok = width_in >= ARCH_KNOWLEDGE["egress"]["min_door_width"]
-            writer.writerow([
-                f"D{door_count:03d}",
-                obj.get("location", "Unknown"),
-                width_in,
-                height_in,
-                obj.get("door_type", "Flush Solid Core"),
-                obj.get("frame_type", "Hollow Metal"),
-                obj.get("hardware_set", "HW-1"),
-                obj.get("fire_rating", "None"),
-                "Yes" if ada_ok else "No — VIOLATION",
-            ])
+            writer.writerow(
+                [
+                    f"D{door_count:03d}",
+                    obj.get("location", "Unknown"),
+                    width_in,
+                    height_in,
+                    obj.get("door_type", "Flush Solid Core"),
+                    obj.get("frame_type", "Hollow Metal"),
+                    obj.get("hardware_set", "HW-1"),
+                    obj.get("fire_rating", "None"),
+                    "Yes" if ada_ok else "No — VIOLATION",
+                ]
+            )
             door_count += 1
 
         return output.getvalue()
@@ -1333,23 +1498,37 @@ class ScheduleGenerator:
         """Generate a CSV-formatted window schedule."""
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Window ID", "Location", "Width (in)", "Height (in)", "Type", "Glazing", "U-Value", "SHGC", "Operable"])
+        writer.writerow(
+            [
+                "Window ID",
+                "Location",
+                "Width (in)",
+                "Height (in)",
+                "Type",
+                "Glazing",
+                "U-Value",
+                "SHGC",
+                "Operable",
+            ]
+        )
 
         win_count = 1
         for obj in scene_objects:
             if obj.get("type") != "window":
                 continue
-            writer.writerow([
-                f"W{win_count:03d}",
-                obj.get("location", "Unknown"),
-                obj.get("width_in", 36),
-                obj.get("height_in", 48),
-                obj.get("window_type", "Casement"),
-                obj.get("glazing", "Double Low-E"),
-                obj.get("u_value", 0.30),
-                obj.get("shgc", 0.25),
-                "Yes" if obj.get("operable", True) else "No",
-            ])
+            writer.writerow(
+                [
+                    f"W{win_count:03d}",
+                    obj.get("location", "Unknown"),
+                    obj.get("width_in", 36),
+                    obj.get("height_in", 48),
+                    obj.get("window_type", "Casement"),
+                    obj.get("glazing", "Double Low-E"),
+                    obj.get("u_value", 0.30),
+                    obj.get("shgc", 0.25),
+                    "Yes" if obj.get("operable", True) else "No",
+                ]
+            )
             win_count += 1
 
         return output.getvalue()
@@ -1358,22 +1537,36 @@ class ScheduleGenerator:
         """Generate a room area schedule."""
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Room ID", "Room Name", "Area (sf)", "Area (sm)", "Ceiling Ht (ft)", "Finish - Floor", "Finish - Walls", "Finish - Ceiling", "Notes"])
+        writer.writerow(
+            [
+                "Room ID",
+                "Room Name",
+                "Area (sf)",
+                "Area (sm)",
+                "Ceiling Ht (ft)",
+                "Finish - Floor",
+                "Finish - Walls",
+                "Finish - Ceiling",
+                "Notes",
+            ]
+        )
 
         for room_id, (name, data) in enumerate(rooms.items(), start=1):
             area_sf = data.get("area_sf", 0)
             area_sm = round(area_sf * SF_TO_SM, 1)
-            writer.writerow([
-                f"RM-{room_id:03d}",
-                name,
-                round(area_sf, 1),
-                area_sm,
-                data.get("ceiling_height_ft", 9),
-                data.get("finish_floor", "Hardwood"),
-                data.get("finish_walls", "Paint"),
-                data.get("finish_ceiling", "Paint"),
-                data.get("notes", ""),
-            ])
+            writer.writerow(
+                [
+                    f"RM-{room_id:03d}",
+                    name,
+                    round(area_sf, 1),
+                    area_sm,
+                    data.get("ceiling_height_ft", 9),
+                    data.get("finish_floor", "Hardwood"),
+                    data.get("finish_walls", "Paint"),
+                    data.get("finish_ceiling", "Paint"),
+                    data.get("notes", ""),
+                ]
+            )
 
         return output.getvalue()
 
@@ -1383,7 +1576,7 @@ class ScheduleGenerator:
         Returns a dict of material types → quantities with units.
         """
         quantities: Dict[str, dict] = {
-            "concrete_floor_slab": {"quantity": 0, "unit": "sf", "note": "4\" slab"},
+            "concrete_floor_slab": {"quantity": 0, "unit": "sf", "note": '4" slab'},
             "exterior_wall_area": {"quantity": 0, "unit": "sf"},
             "interior_wall_area": {"quantity": 0, "unit": "sf"},
             "exterior_glazing": {"quantity": 0, "unit": "sf"},
@@ -1417,6 +1610,7 @@ class ScheduleGenerator:
 # DaylightAnalyzer
 # ---------------------------------------------------------------------------
 
+
 class DaylightAnalyzer:
     """
     Simplified daylight analysis using the daylight factor method and
@@ -1444,7 +1638,9 @@ class DaylightAnalyzer:
             Daylight factor as a percentage (0-100).
         """
         floor_area = room_geometry.get("floor_area_sf", 100)
-        reflectance = room_geometry.get("avg_reflectance", 0.50)  # typical room reflectance
+        reflectance = room_geometry.get(
+            "avg_reflectance", 0.50
+        )  # typical room reflectance
 
         if floor_area <= 0:
             return 0.0
@@ -1470,9 +1666,9 @@ class DaylightAnalyzer:
         sun_angles = {
             "solstice_winter": (20, 180),  # elevation 20°, azimuth 180° (due south)
             "solstice_summer": (78, 180),
-            "equinox_spring":  (56, 180),
-            "equinox_fall":    (56, 180),
-            "noon_average":    (50, 180),
+            "equinox_spring": (56, 180),
+            "equinox_fall": (56, 180),
+            "noon_average": (50, 180),
         }
         elev, azim = sun_angles.get(time_of_year, sun_angles["equinox_spring"])
         elev_rad = math.radians(elev)
@@ -1552,12 +1748,16 @@ print("Object being analyzed: '{building_object_name}'")
 
         # Solve for required window area: window_area = target_df * floor_area / (visible_sky * 100)
         required_window_area = (target_df * floor_area) / (visible_sky * 100)
-        required_window_area = max(required_window_area, floor_area * 0.10)  # minimum 10% window-to-floor
+        required_window_area = max(
+            required_window_area, floor_area * 0.10
+        )  # minimum 10% window-to-floor
 
         # Distribute across wall length
-        wall_length = math.sqrt(floor_area)
+        math.sqrt(floor_area)
         window_height = min(ceiling_height * 0.6, 6.0)  # max 60% of wall height
-        n_windows = max(1, int(required_window_area / (window_height * 3.0)))  # 3ft wide windows
+        n_windows = max(
+            1, int(required_window_area / (window_height * 3.0))
+        )  # 3ft wide windows
 
         actual_df = self.estimate_daylight_factor(
             {"floor_area_sf": floor_area, "avg_reflectance": 0.5},
@@ -1636,8 +1836,13 @@ print("Object being analyzed: '{building_object_name}'")
 
             style = i % 3
             if style == 0:
-                room = {"name": room_type, "floor_area_sf": floor_area, "orientation": orientation, "function": room_type}
-                result = self.optimize_window_placement(room)
+                room = {
+                    "name": room_type,
+                    "floor_area_sf": floor_area,
+                    "orientation": orientation,
+                    "function": room_type,
+                }
+                self.optimize_window_placement(room)
                 code = (
                     f"import arch_agent\n"
                     f"analyzer = arch_agent.DaylightAnalyzer()\n"
@@ -1648,7 +1853,7 @@ print("Object being analyzed: '{building_object_name}'")
                     f"print(result['notes'])"
                 )
             elif style == 1:
-                df = self.estimate_daylight_factor(
+                self.estimate_daylight_factor(
                     {"floor_area_sf": floor_area, "avg_reflectance": 0.5},
                     window_area,
                 )
@@ -1659,20 +1864,22 @@ print("Object being analyzed: '{building_object_name}'")
                     f"    room_geometry={{'floor_area_sf': {floor_area}, 'avg_reflectance': 0.5}},\n"
                     f"    window_area={window_area},\n"
                     f")\n"
-                    f"print(f\"Daylight Factor: {{df}}%\")\n"
+                    f'print(f"Daylight Factor: {{df}}%")\n'
                     f"print('Good' if df >= 2.0 else 'Marginal' if df >= 0.5 else 'Insufficient')"
                 )
             else:
                 code = self.shade_analysis("building_model", time_of_year)
 
-            pairs.append({
-                "voice_command": voice,
-                "task_type": "ARCH_DAYLIGHT",
-                "blender_python": code,
-                "reasoning": random.choice(reasonings),
-                "quality": 2.5,
-                "source": "arch_agent_synthetic",
-            })
+            pairs.append(
+                {
+                    "voice_command": voice,
+                    "task_type": "ARCH_DAYLIGHT",
+                    "blender_python": code,
+                    "reasoning": random.choice(reasonings),
+                    "quality": 2.5,
+                    "source": "arch_agent_synthetic",
+                }
+            )
 
         return pairs
 
@@ -1680,6 +1887,7 @@ print("Object being analyzed: '{building_object_name}'")
 # ---------------------------------------------------------------------------
 # Master training pair generator
 # ---------------------------------------------------------------------------
+
 
 def generate_all_pairs(output_dir: Optional[str] = None) -> List[dict]:
     """
@@ -1689,18 +1897,18 @@ def generate_all_pairs(output_dir: Optional[str] = None) -> List[dict]:
     out_dir = Path(output_dir) if output_dir else DATA_DIR
 
     floorplan_gen = FloorplanGenerator()
-    section_gen   = SectionElevationGenerator()
-    code_checker  = CodeChecker()
+    section_gen = SectionElevationGenerator()
+    code_checker = CodeChecker()
     daylight_anal = DaylightAnalyzer()
 
     print("Generating floorplan pairs (300)...")
-    fp_pairs    = floorplan_gen.generate_training_pairs(300)
+    fp_pairs = floorplan_gen.generate_training_pairs(300)
     print("Generating section/elevation pairs (100)...")
-    sec_pairs   = section_gen.generate_training_pairs(100)
+    sec_pairs = section_gen.generate_training_pairs(100)
     print("Generating code compliance pairs (200)...")
-    code_pairs  = code_checker.generate_training_pairs(200)
+    code_pairs = code_checker.generate_training_pairs(200)
     print("Generating daylight analysis pairs (100)...")
-    day_pairs   = daylight_anal.generate_training_pairs(100)
+    day_pairs = daylight_anal.generate_training_pairs(100)
 
     # Additional pros/cons and open-plan voice command pairs
     extra_pairs = _generate_proscons_pairs(50)
@@ -1731,23 +1939,43 @@ def _generate_proscons_pairs(n: int = 50) -> List[dict]:
     pairs = []
 
     designs = [
-        ("open plan kitchen and living", "open plan eliminates walls between kitchen, dining, and living for a loft-like feel"),
-        ("closed bedroom layout", "each bedroom has its own corridor connection for maximum privacy"),
-        ("central courtyard plan", "building wraps around a central outdoor courtyard for natural light on all sides"),
-        ("linear plan with double-loaded corridor", "rooms line both sides of a central corridor for maximum unit count"),
-        ("L-shaped plan", "L-shaped footprint creates a semi-private outdoor terrace at the bend"),
-        ("split-level design", "half-level changes create spatial hierarchy without full floor separation"),
+        (
+            "open plan kitchen and living",
+            "open plan eliminates walls between kitchen, dining, and living for a loft-like feel",
+        ),
+        (
+            "closed bedroom layout",
+            "each bedroom has its own corridor connection for maximum privacy",
+        ),
+        (
+            "central courtyard plan",
+            "building wraps around a central outdoor courtyard for natural light on all sides",
+        ),
+        (
+            "linear plan with double-loaded corridor",
+            "rooms line both sides of a central corridor for maximum unit count",
+        ),
+        (
+            "L-shaped plan",
+            "L-shaped footprint creates a semi-private outdoor terrace at the bend",
+        ),
+        (
+            "split-level design",
+            "half-level changes create spatial hierarchy without full floor separation",
+        ),
     ]
 
     for i in range(n):
         name, desc = random.choice(designs)
-        voice = random.choice([
-            f"what are the pros and cons of {name}",
-            f"analyze the advantages and disadvantages of {name}",
-            f"evaluate {name} as a design strategy",
-            f"what does {name} gain and lose compared to a traditional layout",
-            f"critique this {name} design decision",
-        ])
+        voice = random.choice(
+            [
+                f"what are the pros and cons of {name}",
+                f"analyze the advantages and disadvantages of {name}",
+                f"evaluate {name} as a design strategy",
+                f"what does {name} gain and lose compared to a traditional layout",
+                f"critique this {name} design decision",
+            ]
+        )
 
         code = (
             f"import arch_agent\n"
@@ -1761,18 +1989,20 @@ def _generate_proscons_pairs(n: int = 50) -> List[dict]:
             f"for con in evaluation['cons']: print(f'  - {{con}}')"
         )
 
-        pairs.append({
-            "voice_command": voice,
-            "task_type": "ARCH_ANALYSIS",
-            "blender_python": code,
-            "reasoning": (
-                f"Pros/cons analysis in architecture weighs competing values: "
-                f"daylight vs. privacy, efficiency vs. flexibility, cost vs. quality. "
-                f"Nalana scores each design option across daylight, circulation, efficiency, egress, and ADA compliance."
-            ),
-            "quality": 2.5,
-            "source": "arch_agent_synthetic",
-        })
+        pairs.append(
+            {
+                "voice_command": voice,
+                "task_type": "ARCH_ANALYSIS",
+                "blender_python": code,
+                "reasoning": (
+                    "Pros/cons analysis in architecture weighs competing values: "
+                    "daylight vs. privacy, efficiency vs. flexibility, cost vs. quality. "
+                    "Nalana scores each design option across daylight, circulation, efficiency, egress, and ADA compliance."
+                ),
+                "quality": 2.5,
+                "source": "arch_agent_synthetic",
+            }
+        )
 
     return pairs
 
@@ -1790,14 +2020,16 @@ def _generate_schedule_pairs(n: int = 50) -> List[dict]:
 
     for i in range(n):
         sched_name, sched_func = random.choice(schedule_types)
-        voice = random.choice([
-            f"generate a {sched_name}",
-            f"create the {sched_name} for this project",
-            f"export the {sched_name} as CSV",
-            f"fill out the {sched_name} from the model",
-            f"auto-generate the {sched_name} from geometry",
-            f"build the {sched_name}",
-        ])
+        voice = random.choice(
+            [
+                f"generate a {sched_name}",
+                f"create the {sched_name} for this project",
+                f"export the {sched_name} as CSV",
+                f"fill out the {sched_name} from the model",
+                f"auto-generate the {sched_name} from geometry",
+                f"build the {sched_name}",
+            ]
+        )
 
         code = (
             f"import arch_agent\n"
@@ -1810,19 +2042,21 @@ def _generate_schedule_pairs(n: int = 50) -> List[dict]:
             f"    f.write(schedule_csv)"
         )
 
-        pairs.append({
-            "voice_command": voice,
-            "task_type": "ARCH_SCHEDULE",
-            "blender_python": code,
-            "reasoning": (
-                f"BIM schedules are auto-derived from model geometry. "
-                f"Manually filling schedules is error-prone and time-consuming. "
-                f"Nalana reads object metadata from the Blender scene and outputs "
-                f"CSV-formatted schedules ready for import into Excel or project management tools."
-            ),
-            "quality": 2.5,
-            "source": "arch_agent_synthetic",
-        })
+        pairs.append(
+            {
+                "voice_command": voice,
+                "task_type": "ARCH_SCHEDULE",
+                "blender_python": code,
+                "reasoning": (
+                    "BIM schedules are auto-derived from model geometry. "
+                    "Manually filling schedules is error-prone and time-consuming. "
+                    "Nalana reads object metadata from the Blender scene and outputs "
+                    "CSV-formatted schedules ready for import into Excel or project management tools."
+                ),
+                "quality": 2.5,
+                "source": "arch_agent_synthetic",
+            }
+        )
 
     return pairs
 
@@ -1830,6 +2064,7 @@ def _generate_schedule_pairs(n: int = 50) -> List[dict]:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1845,30 +2080,51 @@ Examples:
   python arch_agent.py --generate-pairs
         """,
     )
-    parser.add_argument("--generate-floorplan", metavar="PROGRAM_STRING",
-                        help="Generate a floorplan from a natural language description")
-    parser.add_argument("--check-code", metavar="SCENE",
-                        help="Run building code compliance check on a .blend file")
-    parser.add_argument("--section-cut", metavar="SCENE",
-                        help="Generate a section cut")
-    parser.add_argument("--height", type=float, default=4.0,
-                        help="Section cut height in feet")
-    parser.add_argument("--elevation", metavar="SCENE",
-                        help="Generate an elevation view")
-    parser.add_argument("--direction", default="South",
-                        choices=["North", "South", "East", "West"],
-                        help="Elevation direction")
-    parser.add_argument("--daylight", metavar="ROOM_NAME",
-                        help="Run daylight analysis on a room")
-    parser.add_argument("--orientation", default="South",
-                        choices=["North", "South", "East", "West"])
-    parser.add_argument("--area", type=float, default=200,
-                        help="Floor area in sq ft (for daylight analysis)")
-    parser.add_argument("--generate-pairs", action="store_true",
-                        help="Generate all architecture training pairs")
-    parser.add_argument("--output",
-                        default=str(DATA_DIR / "arch_pairs.jsonl"),
-                        help="Output path for training pairs")
+    parser.add_argument(
+        "--generate-floorplan",
+        metavar="PROGRAM_STRING",
+        help="Generate a floorplan from a natural language description",
+    )
+    parser.add_argument(
+        "--check-code",
+        metavar="SCENE",
+        help="Run building code compliance check on a .blend file",
+    )
+    parser.add_argument("--section-cut", metavar="SCENE", help="Generate a section cut")
+    parser.add_argument(
+        "--height", type=float, default=4.0, help="Section cut height in feet"
+    )
+    parser.add_argument(
+        "--elevation", metavar="SCENE", help="Generate an elevation view"
+    )
+    parser.add_argument(
+        "--direction",
+        default="South",
+        choices=["North", "South", "East", "West"],
+        help="Elevation direction",
+    )
+    parser.add_argument(
+        "--daylight", metavar="ROOM_NAME", help="Run daylight analysis on a room"
+    )
+    parser.add_argument(
+        "--orientation", default="South", choices=["North", "South", "East", "West"]
+    )
+    parser.add_argument(
+        "--area",
+        type=float,
+        default=200,
+        help="Floor area in sq ft (for daylight analysis)",
+    )
+    parser.add_argument(
+        "--generate-pairs",
+        action="store_true",
+        help="Generate all architecture training pairs",
+    )
+    parser.add_argument(
+        "--output",
+        default=str(DATA_DIR / "arch_pairs.jsonl"),
+        help="Output path for training pairs",
+    )
 
     args = parser.parse_args()
 
@@ -1893,6 +2149,7 @@ Examples:
 
         # Extract numbers from description
         import re
+
         area_match = re.search(r"(\d{3,4})\s*sf", desc, re.IGNORECASE)
         if area_match:
             total_area = int(area_match.group(1))

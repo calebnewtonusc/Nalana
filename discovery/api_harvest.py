@@ -23,20 +23,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import hashlib
 import json
 import os
 import time
 from pathlib import Path
 from typing import Any, Iterator
-from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
@@ -45,18 +44,31 @@ load_dotenv()
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
-BASE_DIR    = Path(__file__).parents[1]
-MODELS_DIR  = BASE_DIR / "data" / "models"
+BASE_DIR = Path(__file__).parents[1]
+MODELS_DIR = BASE_DIR / "data" / "models"
 
 # ─── Default categories ───────────────────────────────────────────────────────
 
 DEFAULT_CATEGORIES = [
-    "furniture", "vehicles", "architecture", "characters", "nature",
-    "weapons", "electronics", "food", "animals", "clothing",
-    "tools", "buildings", "plants", "environments", "props",
+    "furniture",
+    "vehicles",
+    "architecture",
+    "characters",
+    "nature",
+    "weapons",
+    "electronics",
+    "food",
+    "animals",
+    "clothing",
+    "tools",
+    "buildings",
+    "plants",
+    "environments",
+    "props",
 ]
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def file_hash(path: Path) -> str:
     """SHA-256 of file contents for deduplication."""
@@ -91,8 +103,14 @@ def pbar(iterable, total: int, desc: str):
     return iterable
 
 
-def retry_get(client: httpx.Client, url: str, params: dict | None = None,
-              headers: dict | None = None, retries: int = 3, backoff: float = 2.0) -> httpx.Response:
+def retry_get(
+    client: httpx.Client,
+    url: str,
+    params: dict | None = None,
+    headers: dict | None = None,
+    retries: int = 3,
+    backoff: float = 2.0,
+) -> httpx.Response:
     for attempt in range(retries):
         try:
             resp = client.get(url, params=params, headers=headers, timeout=30)
@@ -103,15 +121,14 @@ def retry_get(client: httpx.Client, url: str, params: dict | None = None,
                 continue
             resp.raise_for_status()
             return resp
-        except (httpx.HTTPError, httpx.TimeoutException) as e:
+        except (httpx.HTTPError, httpx.TimeoutException):
             if attempt == retries - 1:
                 raise
-            time.sleep(backoff * (2 ** attempt))
+            time.sleep(backoff * (2**attempt))
     raise RuntimeError(f"Failed after {retries} retries: {url}")
 
 
-def download_file(client: httpx.Client, url: str, dest: Path,
-                  retries: int = 3) -> bool:
+def download_file(client: httpx.Client, url: str, dest: Path, retries: int = 3) -> bool:
     """Stream-download a file. Returns True on success."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(retries):
@@ -126,7 +143,7 @@ def download_file(client: httpx.Client, url: str, dest: Path,
             if attempt == retries - 1:
                 print(f"    Download failed: {url} — {e}")
                 return False
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
     return False
 
 
@@ -134,39 +151,45 @@ def download_file(client: httpx.Client, url: str, dest: Path,
 
 SKETCHFAB_API = "https://api.sketchfab.com/v3"
 SKETCHFAB_CATEGORIES = {
-    "furniture":     "furniture-home",
-    "vehicles":      "vehicles-transportation",
-    "architecture":  "architecture",
-    "characters":    "characters-creatures",
-    "nature":        "nature-plants",
-    "weapons":       "weapons-military",
-    "electronics":   "electronics-gadgets",
-    "food":          "food-drink",
-    "animals":       "animals-pets",
-    "buildings":     "architectural-elements",
-    "tools":         "science-technology",
-    "environments":  "places-travel",
+    "furniture": "furniture-home",
+    "vehicles": "vehicles-transportation",
+    "architecture": "architecture",
+    "characters": "characters-creatures",
+    "nature": "nature-plants",
+    "weapons": "weapons-military",
+    "electronics": "electronics-gadgets",
+    "food": "food-drink",
+    "animals": "animals-pets",
+    "buildings": "architectural-elements",
+    "tools": "science-technology",
+    "environments": "places-travel",
 }
 
 
-def sketchfab_search_page(client: httpx.Client, api_key: str,
-                          category: str, cursor: str | None = None,
-                          page_size: int = 24) -> tuple[list[dict], str | None]:
+def sketchfab_search_page(
+    client: httpx.Client,
+    api_key: str,
+    category: str,
+    cursor: str | None = None,
+    page_size: int = 24,
+) -> tuple[list[dict], str | None]:
     """Fetch one page of Sketchfab search results. Returns (models, next_cursor)."""
     params: dict[str, Any] = {
-        "type":        "models",
+        "type": "models",
         "downloadable": True,
-        "license":     "cc",            # All CC variants
-        "categories":  SKETCHFAB_CATEGORIES.get(category, category),
-        "count":       page_size,
-        "sort_by":     "-downloadCount",
+        "license": "cc",  # All CC variants
+        "categories": SKETCHFAB_CATEGORIES.get(category, category),
+        "count": page_size,
+        "sort_by": "-downloadCount",
         "file_format": "glb",
     }
     if cursor:
         params["cursor"] = cursor
 
     resp = retry_get(
-        client, f"{SKETCHFAB_API}/search", params=params,
+        client,
+        f"{SKETCHFAB_API}/search",
+        params=params,
         headers={"Authorization": f"Token {api_key}"},
     )
     data = resp.json()
@@ -175,12 +198,14 @@ def sketchfab_search_page(client: httpx.Client, api_key: str,
     return results, cursors.get("next")
 
 
-def sketchfab_get_download_url(client: httpx.Client, api_key: str,
-                               uid: str) -> str | None:
+def sketchfab_get_download_url(
+    client: httpx.Client, api_key: str, uid: str
+) -> str | None:
     """Request a download URL for a Sketchfab model (requires auth)."""
     try:
         resp = retry_get(
-            client, f"{SKETCHFAB_API}/models/{uid}/download",
+            client,
+            f"{SKETCHFAB_API}/models/{uid}/download",
             headers={"Authorization": f"Token {api_key}"},
         )
         data = resp.json()
@@ -234,11 +259,10 @@ def harvest_sketchfab(limit: int, categories: list[str]) -> None:
                         continue
                     seen_uids.add(uid)
 
-                    name     = model.get("name", uid)
+                    name = model.get("name", uid)
                     license_ = model.get("license", {}).get("label", "cc-by")
                     poly_count = (
-                        (model.get("faceCount") or 0) +
-                        (model.get("vertexCount") or 0)
+                        (model.get("faceCount") or 0) + (model.get("vertexCount") or 0)
                     ) // 2 or None
 
                     # Get download URL
@@ -260,15 +284,15 @@ def harvest_sketchfab(limit: int, categories: list[str]) -> None:
 
                     # Metadata
                     meta = {
-                        "uid":       uid,
-                        "name":      name,
-                        "category":  category,
+                        "uid": uid,
+                        "name": name,
+                        "category": category,
                         "poly_count": poly_count,
-                        "format":    "glb",
-                        "license":   license_,
-                        "source":    "sketchfab",
-                        "file":      str(dest.relative_to(BASE_DIR)),
-                        "url":       f"https://sketchfab.com/3d-models/{uid}",
+                        "format": "glb",
+                        "license": license_,
+                        "source": "sketchfab",
+                        "file": str(dest.relative_to(BASE_DIR)),
+                        "url": f"https://sketchfab.com/3d-models/{uid}",
                     }
                     append_metadata(source_dir, meta)
                     saved_in_cat += 1
@@ -289,8 +313,9 @@ def harvest_sketchfab(limit: int, categories: list[str]) -> None:
 POLYHAVEN_API = "https://api.polyhaven.com"
 
 
-def polyhaven_iter_assets(client: httpx.Client,
-                          asset_type: str) -> Iterator[tuple[str, dict]]:
+def polyhaven_iter_assets(
+    client: httpx.Client, asset_type: str
+) -> Iterator[tuple[str, dict]]:
     """Yield (asset_id, asset_info) for all Polyhaven assets of given type."""
     resp = retry_get(client, f"{POLYHAVEN_API}/assets", params={"type": asset_type})
     for asset_id, info in resp.json().items():
@@ -302,8 +327,9 @@ def polyhaven_get_files(client: httpx.Client, asset_id: str) -> dict:
     return resp.json()
 
 
-def harvest_polyhaven(all_hdri: bool = True, models: bool = True,
-                      textures: bool = False) -> None:
+def harvest_polyhaven(
+    all_hdri: bool = True, models: bool = True, textures: bool = False
+) -> None:
     source_dir = MODELS_DIR / "polyhaven"
     source_dir.mkdir(parents=True, exist_ok=True)
     seen_hashes = load_seen_hashes(source_dir)
@@ -345,14 +371,9 @@ def harvest_polyhaven(all_hdri: bool = True, models: bool = True,
                     ext = "exr"
                 elif asset_type == "models":
                     # Download GLB if available, else OBJ
-                    glb_info = (
-                        files_data.get("blend", {})
-                        .get("1k", {})
-                        .get("glb") or
-                        files_data.get("gltf", {})
-                        .get("1k", {})
-                        .get("glb")
-                    )
+                    glb_info = files_data.get("blend", {}).get("1k", {}).get(
+                        "glb"
+                    ) or files_data.get("gltf", {}).get("1k", {}).get("glb")
                     url = glb_info.get("url") if isinstance(glb_info, dict) else None
                     ext = "glb"
                     if not url:
@@ -391,16 +412,18 @@ def harvest_polyhaven(all_hdri: bool = True, models: bool = True,
                 save_hash(source_dir, digest)
 
                 meta = {
-                    "uid":      asset_id,
-                    "name":     info.get("name", asset_id),
-                    "category": info.get("categories", ["unknown"])[0] if info.get("categories") else "unknown",
+                    "uid": asset_id,
+                    "name": info.get("name", asset_id),
+                    "category": info.get("categories", ["unknown"])[0]
+                    if info.get("categories")
+                    else "unknown",
                     "poly_count": None,
-                    "format":   ext,
-                    "license":  "CC0",
-                    "source":   "polyhaven",
-                    "type":     asset_type,
-                    "file":     str(dest.relative_to(BASE_DIR)),
-                    "url":      f"https://polyhaven.com/a/{asset_id}",
+                    "format": ext,
+                    "license": "CC0",
+                    "source": "polyhaven",
+                    "type": asset_type,
+                    "file": str(dest.relative_to(BASE_DIR)),
+                    "url": f"https://polyhaven.com/a/{asset_id}",
                 }
                 append_metadata(source_dir, meta)
                 total_saved += 1
@@ -413,34 +436,45 @@ def harvest_polyhaven(all_hdri: bool = True, models: bool = True,
 
 THINGIVERSE_API = "https://api.thingiverse.com"
 THINGIVERSE_CATEGORIES = [
-    "3D Printing", "Art", "Fashion", "Gadgets", "Hobby",
-    "Household", "Learning", "Models", "Tools", "Toys & Games",
+    "3D Printing",
+    "Art",
+    "Fashion",
+    "Gadgets",
+    "Hobby",
+    "Household",
+    "Learning",
+    "Models",
+    "Tools",
+    "Toys & Games",
 ]
 
 
-def thingiverse_search_page(client: httpx.Client, api_key: str,
-                            category: str, page: int = 1,
-                            per_page: int = 30) -> list[dict]:
+def thingiverse_search_page(
+    client: httpx.Client, api_key: str, category: str, page: int = 1, per_page: int = 30
+) -> list[dict]:
     params = {
-        "q":        category,
-        "type":     "things",
-        "page":     page,
+        "q": category,
+        "type": "things",
+        "page": page,
         "per_page": per_page,
-        "sort":     "popular",
+        "sort": "popular",
         "posted_after": "2018-01-01",
     }
     resp = retry_get(
-        client, f"{THINGIVERSE_API}/search/{category}",
+        client,
+        f"{THINGIVERSE_API}/search/{category}",
         params=params,
         headers={"Authorization": f"Bearer {api_key}"},
     )
     return resp.json().get("hits", [])
 
 
-def thingiverse_get_files(client: httpx.Client, api_key: str,
-                          thing_id: int) -> list[dict]:
+def thingiverse_get_files(
+    client: httpx.Client, api_key: str, thing_id: int
+) -> list[dict]:
     resp = retry_get(
-        client, f"{THINGIVERSE_API}/things/{thing_id}/files",
+        client,
+        f"{THINGIVERSE_API}/things/{thing_id}/files",
         headers={"Authorization": f"Bearer {api_key}"},
     )
     return resp.json()
@@ -462,14 +496,18 @@ def harvest_thingiverse(limit: int) -> None:
     with httpx.Client(follow_redirects=True) as client:
         for category in THINGIVERSE_CATEGORIES:
             print(f"\n[Thingiverse] Category: {category} (target {per_cat})")
-            cat_dir = source_dir / category.lower().replace(" ", "_").replace("&", "and")
+            cat_dir = source_dir / category.lower().replace(" ", "_").replace(
+                "&", "and"
+            )
             cat_dir.mkdir(parents=True, exist_ok=True)
             saved_in_cat = 0
             page = 1
 
             while saved_in_cat < per_cat and total_saved < limit:
                 try:
-                    things = thingiverse_search_page(client, api_key, category, page=page)
+                    things = thingiverse_search_page(
+                        client, api_key, category, page=page
+                    )
                 except Exception as e:
                     print(f"  Search error page {page}: {e}")
                     break
@@ -506,7 +544,9 @@ def harvest_thingiverse(limit: int) -> None:
                     if not target_file:
                         continue
 
-                    dl_url = target_file.get("direct_url") or target_file.get("download_url")
+                    dl_url = target_file.get("direct_url") or target_file.get(
+                        "download_url"
+                    )
                     if not dl_url:
                         continue
 
@@ -523,15 +563,15 @@ def harvest_thingiverse(limit: int) -> None:
                     save_hash(source_dir, digest)
 
                     meta = {
-                        "uid":       str(thing_id),
-                        "name":      thing.get("name", str(thing_id)),
-                        "category":  category,
+                        "uid": str(thing_id),
+                        "name": thing.get("name", str(thing_id)),
+                        "category": category,
                         "poly_count": None,
-                        "format":    ext,
-                        "license":   thing.get("license", "cc-by"),
-                        "source":    "thingiverse",
-                        "file":      str(dest.relative_to(BASE_DIR)),
-                        "url":       f"https://www.thingiverse.com/thing:{thing_id}",
+                        "format": ext,
+                        "license": thing.get("license", "cc-by"),
+                        "source": "thingiverse",
+                        "file": str(dest.relative_to(BASE_DIR)),
+                        "url": f"https://www.thingiverse.com/thing:{thing_id}",
                     }
                     append_metadata(source_dir, meta)
                     saved_in_cat += 1
@@ -549,16 +589,16 @@ def harvest_thingiverse(limit: int) -> None:
 SMITHSONIAN_API = "https://api.si.edu/openaccess/api/v1.0"
 
 
-def smithsonian_search_page(client: httpx.Client, api_key: str,
-                            query: str, start: int = 0,
-                            rows: int = 20) -> list[dict]:
+def smithsonian_search_page(
+    client: httpx.Client, api_key: str, query: str, start: int = 0, rows: int = 20
+) -> list[dict]:
     params = {
-        "q":           query,
-        "api_key":     api_key,
-        "start":       start,
-        "rows":        rows,
-        "type":        "3d_package",
-        "media.type":  "3d_package",
+        "q": query,
+        "api_key": api_key,
+        "start": start,
+        "rows": rows,
+        "type": "3d_package",
+        "media.type": "3d_package",
     }
     try:
         resp = retry_get(client, f"{SMITHSONIAN_API}/search", params=params)
@@ -588,9 +628,15 @@ def harvest_smithsonian(limit: int) -> None:
     total_saved = 0
 
     queries = [
-        "artifact sculpture", "ancient pottery", "fossil specimen",
-        "natural history", "historical instrument", "gemstone mineral",
-        "cultural artifact", "architectural model", "industrial object",
+        "artifact sculpture",
+        "ancient pottery",
+        "fossil specimen",
+        "natural history",
+        "historical instrument",
+        "gemstone mineral",
+        "cultural artifact",
+        "architectural model",
+        "industrial object",
     ]
 
     with httpx.Client(follow_redirects=True) as client:
@@ -609,7 +655,7 @@ def harvest_smithsonian(limit: int) -> None:
                     if total_saved >= limit:
                         break
 
-                    uid   = row.get("id", "")
+                    uid = row.get("id", "")
                     title = row.get("title", uid)
                     media = row.get("_media", {})
 
@@ -621,7 +667,9 @@ def harvest_smithsonian(limit: int) -> None:
                         descriptive = content.get("descriptiveNonRepeating", {})
                         packages = descriptive.get("online_media", {}).get("media", [])
 
-                    glb_url = smithsonian_get_glb_url(packages if isinstance(packages, list) else [])
+                    glb_url = smithsonian_get_glb_url(
+                        packages if isinstance(packages, list) else []
+                    )
                     if not glb_url:
                         continue
 
@@ -637,25 +685,23 @@ def harvest_smithsonian(limit: int) -> None:
                     save_hash(source_dir, digest)
 
                     # Extract unit/department info
-                    freetext = (
-                        row.get("content", {})
-                        .get("freetext", {})
-                    )
+                    freetext = row.get("content", {}).get("freetext", {})
                     cat = (
                         freetext.get("setName", [{}])[0].get("content", "artifact")
-                        if freetext.get("setName") else "artifact"
+                        if freetext.get("setName")
+                        else "artifact"
                     )
 
                     meta = {
-                        "uid":       uid,
-                        "name":      title,
-                        "category":  cat,
+                        "uid": uid,
+                        "name": title,
+                        "category": cat,
                         "poly_count": None,
-                        "format":    "glb",
-                        "license":   "CC0",
-                        "source":    "smithsonian",
-                        "file":      str(dest.relative_to(BASE_DIR)),
-                        "url":       f"https://3d.si.edu/object/{uid}",
+                        "format": "glb",
+                        "license": "CC0",
+                        "source": "smithsonian",
+                        "file": str(dest.relative_to(BASE_DIR)),
+                        "url": f"https://3d.si.edu/object/{uid}",
                     }
                     append_metadata(source_dir, meta)
                     total_saved += 1
@@ -671,20 +717,28 @@ def harvest_smithsonian(limit: int) -> None:
 
 NIH_API = "https://3dprint.nih.gov/api"
 NIH_CATEGORIES = [
-    "anatomy", "biology", "chemistry", "medicine", "neuroscience",
-    "paleontology", "physiology", "surgery", "education",
+    "anatomy",
+    "biology",
+    "chemistry",
+    "medicine",
+    "neuroscience",
+    "paleontology",
+    "physiology",
+    "surgery",
+    "education",
 ]
 
 
-def nih_search_page(client: httpx.Client, category: str,
-                    page: int = 1, per_page: int = 20) -> list[dict]:
+def nih_search_page(
+    client: httpx.Client, category: str, page: int = 1, per_page: int = 20
+) -> list[dict]:
     params = {
-        "type":     "model",
+        "type": "model",
         "keywords": category,
-        "page":     page,
+        "page": page,
         "items_per_page": per_page,
-        "sort":     "downloads",
-        "order":    "desc",
+        "sort": "downloads",
+        "order": "desc",
     }
     try:
         resp = retry_get(client, f"{NIH_API}/search", params=params)
@@ -743,9 +797,9 @@ def harvest_nih(limit: int) -> None:
 
                     dl_url = None
                     ext = None
-                    for f in (files if isinstance(files, list) else []):
+                    for f in files if isinstance(files, list) else []:
                         fname = (f.get("filename") or f.get("name") or "").lower()
-                        furl  = f.get("url") or f.get("file_url") or ""
+                        furl = f.get("url") or f.get("file_url") or ""
                         for fmt in (".stl", ".obj", ".glb", ".3mf"):
                             if fname.endswith(fmt) or fmt in furl.lower():
                                 dl_url = furl
@@ -775,15 +829,15 @@ def harvest_nih(limit: int) -> None:
                     save_hash(source_dir, digest)
 
                     meta = {
-                        "uid":       nid,
-                        "name":      title,
-                        "category":  category,
+                        "uid": nid,
+                        "name": title,
+                        "category": category,
                         "poly_count": None,
-                        "format":    ext,
-                        "license":   "public_domain",
-                        "source":    "nih",
-                        "file":      str(dest.relative_to(BASE_DIR)),
-                        "url":       f"https://3dprint.nih.gov/discover/{nid}",
+                        "format": ext,
+                        "license": "public_domain",
+                        "source": "nih",
+                        "file": str(dest.relative_to(BASE_DIR)),
+                        "url": f"https://3dprint.nih.gov/discover/{nid}",
                     }
                     append_metadata(source_dir, meta)
                     saved_in_cat += 1
@@ -798,28 +852,30 @@ def harvest_nih(limit: int) -> None:
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Harvest 3D models from public APIs for the Nalana dataset"
     )
-    parser.add_argument("--all",         action="store_true", help="Run all harvesters")
-    parser.add_argument("--sketchfab",   action="store_true")
-    parser.add_argument("--polyhaven",   action="store_true")
+    parser.add_argument("--all", action="store_true", help="Run all harvesters")
+    parser.add_argument("--sketchfab", action="store_true")
+    parser.add_argument("--polyhaven", action="store_true")
     parser.add_argument("--thingiverse", action="store_true")
     parser.add_argument("--smithsonian", action="store_true")
-    parser.add_argument("--nih",         action="store_true")
+    parser.add_argument("--nih", action="store_true")
 
     parser.add_argument(
         "--categories",
         default=",".join(DEFAULT_CATEGORIES),
-        help="Comma-separated list of categories (for Sketchfab/Thingiverse)"
+        help="Comma-separated list of categories (for Sketchfab/Thingiverse)",
     )
-    parser.add_argument("--limit",       type=int, default=1000,
-                        help="Max models per source")
-    parser.add_argument("--all-hdri",    action="store_true",
-                        help="Download all Polyhaven HDRIs")
-    parser.add_argument("--ph-textures", action="store_true",
-                        help="Also download Polyhaven textures")
+    parser.add_argument("--limit", type=int, default=1000, help="Max models per source")
+    parser.add_argument(
+        "--all-hdri", action="store_true", help="Download all Polyhaven HDRIs"
+    )
+    parser.add_argument(
+        "--ph-textures", action="store_true", help="Also download Polyhaven textures"
+    )
 
     args = parser.parse_args()
     cats = [c.strip() for c in args.categories.split(",") if c.strip()]

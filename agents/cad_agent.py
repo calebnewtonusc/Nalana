@@ -25,9 +25,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +52,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 8,
         "notes": "Most common structural aluminum. Excellent machinability, good weldability. "
-                 "Widely available T6 temper for aerospace and automotive brackets.",
+        "Widely available T6 temper for aerospace and automotive brackets.",
     },
     "aluminum_7075_t6": {
         "density": 2810,
@@ -66,8 +65,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 5,
         "notes": "Aerospace-grade high-strength aluminum. 7075 has ~80% higher yield than 6061 "
-                 "but poorer corrosion resistance and weldability. Used in aircraft skins, "
-                 "rifle receivers.",
+        "but poorer corrosion resistance and weldability. Used in aircraft skins, "
+        "rifle receivers.",
     },
     "aluminum_2024_t3": {
         "density": 2780,
@@ -80,7 +79,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 4,
         "notes": "Classic aerospace fuselage alloy. High fatigue resistance. Difficult to weld — "
-                 "riveted assemblies preferred. Requires clad coating for corrosion protection.",
+        "riveted assemblies preferred. Requires clad coating for corrosion protection.",
     },
     "aluminum_5052_h32": {
         "density": 2680,
@@ -93,7 +92,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 9,
         "notes": "Best corrosion resistance among common aluminums. Marine and chemical plant "
-                 "applications. Not heat-treatable but work-hardens well.",
+        "applications. Not heat-treatable but work-hardens well.",
     },
     # ── Steel grades ──────────────────────────────────────────────────────────
     "steel_304_stainless": {
@@ -107,8 +106,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 9,
         "notes": "18-8 austenitic stainless. General-purpose corrosion-resistant steel. "
-                 "Work hardens during machining — use sharp tools, low feeds. Food-safe, "
-                 "weldable. 316 preferred for marine (better chloride resistance).",
+        "Work hardens during machining — use sharp tools, low feeds. Food-safe, "
+        "weldable. 316 preferred for marine (better chloride resistance).",
     },
     "steel_316_stainless": {
         "density": 8000,
@@ -121,7 +120,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 10,
         "notes": "Mo-alloyed austenitic stainless. Superior to 304 in marine and "
-                 "chemical environments. Higher cost. Surgical instruments, marine hardware.",
+        "chemical environments. Higher cost. Surgical instruments, marine hardware.",
     },
     "steel_4140_chromoly": {
         "density": 7850,
@@ -134,8 +133,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 3,
         "notes": "Chromium-molybdenum alloy steel. High toughness and hardenability. "
-                 "Common for shafts, gears, bolts, firearms. Pre-hardened vs. annealed "
-                 "availability depends on supplier.",
+        "Common for shafts, gears, bolts, firearms. Pre-hardened vs. annealed "
+        "availability depends on supplier.",
     },
     "steel_h13_tool": {
         "density": 7750,
@@ -148,7 +147,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 3,
         "notes": "Hot-work tool steel. Injection mold tooling, die casting dies, extrusion "
-                 "tooling. Excellent thermal fatigue resistance. Typically used at 44-52 HRC.",
+        "tooling. Excellent thermal fatigue resistance. Typically used at 44-52 HRC.",
     },
     "steel_d2_tool": {
         "density": 7700,
@@ -161,7 +160,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 4,
         "corrosion_resistance": 4,
         "notes": "Cold-work high-carbon, high-chrome tool steel. Blanking dies, punches, "
-                 "cold forming. Excellent wear resistance at expense of toughness.",
+        "cold forming. Excellent wear resistance at expense of toughness.",
     },
     "steel_mild_1018": {
         "density": 7870,
@@ -174,7 +173,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 2,
         "notes": "Low-carbon mild steel. Cheapest, most available steel. Excellent weldability "
-                 "and machinability. Poor corrosion resistance — paint or plate for protection.",
+        "and machinability. Poor corrosion resistance — paint or plate for protection.",
     },
     # ── Titanium ──────────────────────────────────────────────────────────────
     "titanium_ti6al4v": {
@@ -188,8 +187,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 8,
         "corrosion_resistance": 10,
         "notes": "The aerospace titanium alloy. Best strength-to-weight of metals in common use. "
-                 "Biocompatible — implants, surgical tools. Poor thermal conductivity means heat "
-                 "builds up during machining. LPBF printing well-developed for this alloy.",
+        "Biocompatible — implants, surgical tools. Poor thermal conductivity means heat "
+        "builds up during machining. LPBF printing well-developed for this alloy.",
     },
     "titanium_grade2_cp": {
         "density": 4510,
@@ -202,7 +201,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 10,
         "notes": "Commercially pure titanium. Lower strength than Ti-6Al-4V but better formability "
-                 "and weldability. Medical implants, chemical processing equipment.",
+        "and weldability. Medical implants, chemical processing equipment.",
     },
     # ── High-performance polymers ─────────────────────────────────────────────
     "peek": {
@@ -216,8 +215,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 10,
         "notes": "Polyether ether ketone. Highest-performance common polymer. Maintains properties "
-                 "to 250°C. Chemical resistant, biocompatible, self-lubricating. Used for "
-                 "medical implants, aerospace structural brackets, pump impellers.",
+        "to 250°C. Chemical resistant, biocompatible, self-lubricating. Used for "
+        "medical implants, aerospace structural brackets, pump impellers.",
     },
     "pei_ultem": {
         "density": 1270,
@@ -230,8 +229,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 9,
         "notes": "Polyetherimide (Ultem). Aerospace-approved, inherently flame-retardant, "
-                 "sterilizable. Often substituted for PEEK at lower cost. FDM with "
-                 "high-temp printers (>250°C nozzle).",
+        "sterilizable. Often substituted for PEEK at lower cost. FDM with "
+        "high-temp printers (>250°C nozzle).",
     },
     # ── Engineering plastics ──────────────────────────────────────────────────
     "nylon_pa12": {
@@ -245,7 +244,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 9,
         "corrosion_resistance": 7,
         "notes": "Nylon 12 (PA12). Flexible, impact-resistant, low moisture absorption vs PA6/PA66. "
-                 "SLS printing industry workhorse. Snap fits, living hinges, functional prototypes.",
+        "SLS printing industry workhorse. Snap fits, living hinges, functional prototypes.",
     },
     "nylon_pa66_gf30": {
         "density": 1380,
@@ -258,7 +257,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 6,
         "notes": "Glass-filled nylon 66. 30% glass fiber increases stiffness and strength 3-4x. "
-                 "Common for structural under-hood automotive components, pump housings.",
+        "Common for structural under-hood automotive components, pump housings.",
     },
     "abs": {
         "density": 1050,
@@ -271,8 +270,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 8,
         "corrosion_resistance": 6,
         "notes": "Acrylonitrile butadiene styrene. Classic FDM material. Impact-resistant, "
-                 "paintable, good dimensional stability. Warps more than PLA — needs heated bed. "
-                 "Consumer electronics housings, LEGO.",
+        "paintable, good dimensional stability. Warps more than PLA — needs heated bed. "
+        "Consumer electronics housings, LEGO.",
     },
     "pla": {
         "density": 1240,
@@ -285,8 +284,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 10,
         "corrosion_resistance": 5,
         "notes": "Polylactic acid. Easiest FDM material, biodegradable from corn starch. "
-                 "Good for prototypes. Low heat deflection (~60°C) limits functional use. "
-                 "Brittle vs. PETG/ABS.",
+        "Good for prototypes. Low heat deflection (~60°C) limits functional use. "
+        "Brittle vs. PETG/ABS.",
     },
     "petg": {
         "density": 1270,
@@ -299,8 +298,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 9,
         "corrosion_resistance": 7,
         "notes": "Polyethylene terephthalate glycol. Best balance of ease-of-print, strength, "
-                 "and chemical resistance among common FDM materials. Food-safe, clear variants "
-                 "available. Better layer adhesion than PLA.",
+        "and chemical resistance among common FDM materials. Food-safe, clear variants "
+        "available. Better layer adhesion than PLA.",
     },
     "tpu_95a": {
         "density": 1250,
@@ -313,7 +312,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 7,
         "notes": "Thermoplastic polyurethane 95A Shore. Flexible, rubber-like. FDM printable with "
-                 "direct-drive extruder. Seals, gaskets, phone cases, shoe soles.",
+        "direct-drive extruder. Seals, gaskets, phone cases, shoe soles.",
     },
     "polycarbonate": {
         "density": 1200,
@@ -326,7 +325,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 6,
         "notes": "High-impact, optically clear thermoplastic. Bullet-resistant panels, eyewear, "
-                 "aerospace canopies. High heat deflection (~130°C). Requires high-temp FDM.",
+        "aerospace canopies. High heat deflection (~130°C). Requires high-temp FDM.",
     },
     # ── Composites ────────────────────────────────────────────────────────────
     "carbon_fiber_composite_ud": {
@@ -340,8 +339,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 4,
         "corrosion_resistance": 8,
         "notes": "Unidirectional carbon fiber / epoxy. Highest specific stiffness of any "
-                 "structural material. Anisotropic — properties in fiber direction only. "
-                 "F1 monocoques, bicycle frames, wind turbine blades. Abrasive to machine.",
+        "structural material. Anisotropic — properties in fiber direction only. "
+        "F1 monocoques, bicycle frames, wind turbine blades. Abrasive to machine.",
     },
     "carbon_fiber_composite_woven": {
         "density": 1550,
@@ -354,7 +353,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 3,
         "corrosion_resistance": 8,
         "notes": "Woven CF/epoxy. More isotropic than UD. Better impact and damage tolerance. "
-                 "Structural panels, aerospace fairings, sporting goods.",
+        "Structural panels, aerospace fairings, sporting goods.",
     },
     "fiberglass_e_glass": {
         "density": 1900,
@@ -367,7 +366,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 9,
         "notes": "E-glass / epoxy or polyester. Most common composite. Boat hulls, wind turbines, "
-                 "body panels. Much cheaper than carbon fiber. Electrically non-conductive.",
+        "body panels. Much cheaper than carbon fiber. Electrically non-conductive.",
     },
     "kevlar_aramid": {
         "density": 1440,
@@ -380,8 +379,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 3,
         "corrosion_resistance": 8,
         "notes": "Aramid fiber (Kevlar). Extraordinary tensile strength and impact resistance. "
-                 "Ballistic armor, pressure vessels, bicycle tires. Very difficult to cut — "
-                 "requires ceramic scissors or water jet.",
+        "Ballistic armor, pressure vessels, bicycle tires. Very difficult to cut — "
+        "requires ceramic scissors or water jet.",
     },
     # ── Magnesium alloys ──────────────────────────────────────────────────────
     "magnesium_az31b": {
@@ -395,8 +394,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 4,
         "corrosion_resistance": 3,
         "notes": "Lightest structural metal (1/4 the weight of steel). Laptop cases, camera bodies, "
-                 "steering wheels. Fire hazard as chips/powder — requires flood coolant when machining. "
-                 "Poor corrosion resistance — must anodize or plate.",
+        "steering wheels. Fire hazard as chips/powder — requires flood coolant when machining. "
+        "Poor corrosion resistance — must anodize or plate.",
     },
     # ── Superalloys ──────────────────────────────────────────────────────────
     "inconel_625": {
@@ -410,8 +409,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 7,
         "corrosion_resistance": 10,
         "notes": "Nickel-chromium superalloy. Maintains strength to 1000°C. Jet engine hot section, "
-                 "chemical reactors, deep-sea oil equipment. Extremely difficult to machine — "
-                 "LPBF printing increasingly preferred.",
+        "chemical reactors, deep-sea oil equipment. Extremely difficult to machine — "
+        "LPBF printing increasingly preferred.",
     },
     "inconel_718": {
         "density": 8190,
@@ -424,8 +423,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 8,
         "corrosion_resistance": 9,
         "notes": "Age-hardened Ni superalloy. Higher strength than 625 at room temperature. "
-                 "Turbine discs, fasteners, rocket combustion chambers. Most common superalloy "
-                 "for LPBF. Solution anneal + age after printing.",
+        "Turbine discs, fasteners, rocket combustion chambers. Most common superalloy "
+        "for LPBF. Solution anneal + age after printing.",
     },
     "hastelloy_c276": {
         "density": 8890,
@@ -438,8 +437,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 10,
         "notes": "Ni-Mo-Cr alloy with outstanding corrosion resistance in reducing AND oxidizing "
-                 "environments. Chemical processing, flue gas desulfurization. More corrosion "
-                 "resistant than Inconel 625 in acidic chloride environments.",
+        "environments. Chemical processing, flue gas desulfurization. More corrosion "
+        "resistant than Inconel 625 in acidic chloride environments.",
     },
     # ── Ceramics (engineering) ────────────────────────────────────────────────
     "alumina_al2o3": {
@@ -453,8 +452,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 10,
         "notes": "Aluminum oxide ceramic. Hard, wear-resistant, electrically insulating. "
-                 "Cutting tools, bearing races, spark plugs, medical implants. Green machining "
-                 "before sintering is easier than machining fired parts.",
+        "Cutting tools, bearing races, spark plugs, medical implants. Green machining "
+        "before sintering is easier than machining fired parts.",
     },
     "silicon_carbide": {
         "density": 3210,
@@ -467,7 +466,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 4,
         "corrosion_resistance": 10,
         "notes": "SiC ceramic. Higher stiffness and thermal conductivity than alumina. "
-                 "Heat exchangers, pump seals, abrasives, mirror blanks for space telescopes.",
+        "Heat exchangers, pump seals, abrasives, mirror blanks for space telescopes.",
     },
     # ── Copper alloys ─────────────────────────────────────────────────────────
     "copper_c11000": {
@@ -481,7 +480,7 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 6,
         "corrosion_resistance": 7,
         "notes": "ETP (electrolytic tough pitch) copper. Highest electrical conductivity of any "
-                 "common metal. Bus bars, motor windings, heat sinks.",
+        "common metal. Bus bars, motor windings, heat sinks.",
     },
     "brass_c360": {
         "density": 8490,
@@ -494,8 +493,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 7,
         "notes": "Free-machining brass. BEST machinability of all metals (rating 10). "
-                 "Fittings, valves, fasteners, musical instruments. Dezincification risk "
-                 "in some water chemistries — use DZR brass instead.",
+        "Fittings, valves, fasteners, musical instruments. Dezincification risk "
+        "in some water chemistries — use DZR brass instead.",
     },
     "beryllium_copper": {
         "density": 8250,
@@ -508,8 +507,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 3,
         "corrosion_resistance": 8,
         "notes": "Highest strength copper alloy. Non-sparking — safe in explosive atmospheres. "
-                 "Springs, connectors, precision instruments. TOXIC dust/fumes — wet machining "
-                 "or full HEPA enclosure required.",
+        "Springs, connectors, precision instruments. TOXIC dust/fumes — wet machining "
+        "or full HEPA enclosure required.",
     },
     # ── Specialty / advanced ──────────────────────────────────────────────────
     "tungsten_carbide": {
@@ -523,8 +522,8 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 2,
         "corrosion_resistance": 8,
         "notes": "WC-Co cemented carbide. Cutting tool inserts, wear parts, dies, drill bits. "
-                 "Heaviest common engineering material. Extremely hard (HRA 85-95). "
-                 "Must EDM or grind — not conventional machine.",
+        "Heaviest common engineering material. Extremely hard (HRA 85-95). "
+        "Must EDM or grind — not conventional machine.",
     },
     "nitinol_niti": {
         "density": 6450,
@@ -537,21 +536,22 @@ ENGINEERING_MATERIALS: dict[str, dict[str, Any]] = {
         "printability": 5,
         "corrosion_resistance": 9,
         "notes": "Nickel-titanium shape memory alloy. Superelastic (~8% recoverable strain) or "
-                 "shape memory effect depending on composition. Medical stents, orthodontic wires, "
-                 "actuators. Very expensive.",
+        "shape memory effect depending on composition. Medical stents, orthodontic wires, "
+        "actuators. Very expensive.",
     },
 }
 
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DFMIssue:
-    severity: str        # "error" | "warning" | "info"
-    issue_type: str      # "draft_angle" | "wall_thickness" | "overhang" | "undercut" | "tool_access"
-    location: str        # human description of where the problem is
-    value: float         # measured value (degrees, mm, etc.)
-    threshold: float     # required minimum/maximum
+    severity: str  # "error" | "warning" | "info"
+    issue_type: str  # "draft_angle" | "wall_thickness" | "overhang" | "undercut" | "tool_access"
+    location: str  # human description of where the problem is
+    value: float  # measured value (degrees, mm, etc.)
+    threshold: float  # required minimum/maximum
     fix_suggestion: str  # actionable fix
 
 
@@ -561,7 +561,7 @@ class BOMRow:
     name: str
     quantity: int
     material: str
-    dimensions_mm: tuple[float, float, float]   # L × W × H
+    dimensions_mm: tuple[float, float, float]  # L × W × H
     weight_kg: float
     cost_estimate_usd: float
     notes: str = ""
@@ -571,7 +571,7 @@ class BOMRow:
 class Mate:
     object_a: str
     object_b: str
-    mate_type: str   # "flush" | "concentric" | "coincident" | "tangent"
+    mate_type: str  # "flush" | "concentric" | "coincident" | "tangent"
     face_a: str
     face_b: str
     offset: float = 0.0
@@ -588,6 +588,7 @@ class Conflict:
 
 # ─── Topology Optimizer ────────────────────────────────────────────────────────
 
+
 class TopologyOptimizer:
     """
     SIMP (Solid Isotropic Material with Penalization) topology optimization.
@@ -603,7 +604,7 @@ class TopologyOptimizer:
             "compliance_target": "min_weight_max_stiffness",
             "min_feature_size_mm": 1.5,
             "description": "Aggressive 70% material removal. Michell-truss inspired topology. "
-                           "Designed for AM (LPBF titanium or aluminum).",
+            "Designed for AM (LPBF titanium or aluminum).",
         },
         "automotive": {
             "volume_fraction": 0.45,
@@ -612,7 +613,7 @@ class TopologyOptimizer:
             "compliance_target": "min_weight_max_stiffness",
             "min_feature_size_mm": 3.0,
             "description": "Balanced weight/cost. Results must be castable or stampable. "
-                           "Avoid features thinner than 3mm for die casting.",
+            "Avoid features thinner than 3mm for die casting.",
         },
         "consumer": {
             "volume_fraction": 0.60,
@@ -621,7 +622,7 @@ class TopologyOptimizer:
             "compliance_target": "min_weight_preserve_aesthetics",
             "min_feature_size_mm": 5.0,
             "description": "Conservative optimization. Smooth, appealing result. "
-                           "Inject-mold or CNC compatible.",
+            "Inject-mold or CNC compatible.",
         },
         "medical": {
             "volume_fraction": 0.35,
@@ -630,7 +631,7 @@ class TopologyOptimizer:
             "compliance_target": "match_bone_stiffness",
             "min_feature_size_mm": 0.5,
             "description": "Lattice structures to match bone modulus (~15 GPa). "
-                           "High porosity improves osseointegration. LPBF Ti-6Al-4V.",
+            "High porosity improves osseointegration. LPBF Ti-6Al-4V.",
         },
     }
 
@@ -711,7 +712,9 @@ print("Apply modifiers and review result — refine with actual FEA for producti
         return code.strip()
 
     def suggest_optimization_params(self, obj_name: str, use_case: str) -> dict:
-        params = self.USE_CASE_PARAMS.get(use_case, self.USE_CASE_PARAMS["consumer"]).copy()
+        params = self.USE_CASE_PARAMS.get(
+            use_case, self.USE_CASE_PARAMS["consumer"]
+        ).copy()
         params["object"] = obj_name
         params["use_case"] = use_case
         return params
@@ -724,7 +727,7 @@ print("Apply modifiers and review result — refine with actual FEA for producti
             f"Removed {removed:.0f}% of material from low-stress regions using the SIMP method. "
             f"The resulting topology follows a Michell-truss inspired load path — material is "
             f"concentrated along principal stress trajectories. For {use_case} applications, "
-            f"this reduces weight while maintaining {vf*100:.0f}% of the original stiffness. "
+            f"this reduces weight while maintaining {vf * 100:.0f}% of the original stiffness. "
             f"Recommend verifying result with FEA (Ansys/SimScale) before production. "
             f"Minimum feature size enforced: {result.get('min_feature_size_mm', 3)}mm — "
             f"compatible with the target manufacturing process."
@@ -732,6 +735,7 @@ print("Apply modifiers and review result — refine with actual FEA for producti
 
 
 # ─── DFM Checker ──────────────────────────────────────────────────────────────
+
 
 class DFMChecker:
     """
@@ -758,93 +762,109 @@ class DFMChecker:
         "cnc": {"min": 0.0, "recommended": 0.0, "ideal": 0.0},
     }
 
-    def check_draft_angles(self, obj_name: str, pull_direction: str = "Z+") -> list[DFMIssue]:
+    def check_draft_angles(
+        self, obj_name: str, pull_direction: str = "Z+"
+    ) -> list[DFMIssue]:
         issues = []
         required = self.PROCESS_DRAFT_REQUIREMENTS.get("injection_mold", {})
-        issues.append(DFMIssue(
-            severity="warning",
-            issue_type="draft_angle",
-            location=f"Side walls of '{obj_name}' parallel to {pull_direction} axis",
-            value=0.2,
-            threshold=required.get("min", 0.5),
-            fix_suggestion=(
-                f"Add {required.get('recommended', 1.5)}° draft to faces parallel to "
-                f"pull direction ({pull_direction}). In Blender: select faces, "
-                f"S > Z > scale inward slightly, or use Transform > Shrink/Fatten. "
-                f"For precise draft: Edit Mode > Loop Tools > Circle, or Draft Angle plugin."
-            ),
-        ))
+        issues.append(
+            DFMIssue(
+                severity="warning",
+                issue_type="draft_angle",
+                location=f"Side walls of '{obj_name}' parallel to {pull_direction} axis",
+                value=0.2,
+                threshold=required.get("min", 0.5),
+                fix_suggestion=(
+                    f"Add {required.get('recommended', 1.5)}° draft to faces parallel to "
+                    f"pull direction ({pull_direction}). In Blender: select faces, "
+                    f"S > Z > scale inward slightly, or use Transform > Shrink/Fatten. "
+                    f"For precise draft: Edit Mode > Loop Tools > Circle, or Draft Angle plugin."
+                ),
+            )
+        )
         return issues
 
     def check_wall_thickness(self, obj_name: str, process: str) -> list[DFMIssue]:
         issues = []
         min_thickness = self.PROCESS_WALL_THICKNESS.get(process, 1.5)
-        issues.append(DFMIssue(
-            severity="error",
-            issue_type="wall_thickness",
-            location=f"Thin features detected on '{obj_name}'",
-            value=0.4,
-            threshold=min_thickness,
-            fix_suggestion=(
-                f"Minimum wall for {process} is {min_thickness}mm. "
-                f"Use Blender's Solidify modifier (minimum thickness: {min_thickness}mm) "
-                f"or manually thicken the offending faces. "
-                f"Analysis: Mesh > Cleanup > Merge by Distance first to eliminate zero-thickness walls."
-            ),
-        ))
+        issues.append(
+            DFMIssue(
+                severity="error",
+                issue_type="wall_thickness",
+                location=f"Thin features detected on '{obj_name}'",
+                value=0.4,
+                threshold=min_thickness,
+                fix_suggestion=(
+                    f"Minimum wall for {process} is {min_thickness}mm. "
+                    f"Use Blender's Solidify modifier (minimum thickness: {min_thickness}mm) "
+                    f"or manually thicken the offending faces. "
+                    f"Analysis: Mesh > Cleanup > Merge by Distance first to eliminate zero-thickness walls."
+                ),
+            )
+        )
         return issues
 
-    def check_overhangs(self, obj_name: str, layer_direction: str = "Z+") -> list[DFMIssue]:
+    def check_overhangs(
+        self, obj_name: str, layer_direction: str = "Z+"
+    ) -> list[DFMIssue]:
         issues = []
-        issues.append(DFMIssue(
-            severity="warning",
-            issue_type="overhang",
-            location=f"Overhanging faces on '{obj_name}' (>{45}° from {layer_direction})",
-            value=52.0,
-            threshold=45.0,
-            fix_suggestion=(
-                "FDM overhangs >45° require supports. Options: "
-                "(1) Redesign with chamfers instead of horizontal ledges. "
-                "(2) Split the print at the overhang and assemble. "
-                "(3) Add support structures via slicer (tree supports recommended). "
-                "(4) Re-orient part so overhang is minimized — use optimize_print_orientation()."
-            ),
-        ))
+        issues.append(
+            DFMIssue(
+                severity="warning",
+                issue_type="overhang",
+                location=f"Overhanging faces on '{obj_name}' (>{45}° from {layer_direction})",
+                value=52.0,
+                threshold=45.0,
+                fix_suggestion=(
+                    "FDM overhangs >45° require supports. Options: "
+                    "(1) Redesign with chamfers instead of horizontal ledges. "
+                    "(2) Split the print at the overhang and assemble. "
+                    "(3) Add support structures via slicer (tree supports recommended). "
+                    "(4) Re-orient part so overhang is minimized — use optimize_print_orientation()."
+                ),
+            )
+        )
         return issues
 
     def check_tool_access(self, obj_name: str, tool_diameter: float) -> list[DFMIssue]:
         issues = []
-        issues.append(DFMIssue(
-            severity="error",
-            issue_type="tool_access",
-            location=f"Internal pocket radius on '{obj_name}'",
-            value=tool_diameter * 0.4,
-            threshold=tool_diameter / 2,
-            fix_suggestion=(
-                f"Inside corner radius must be ≥ {tool_diameter/2:.1f}mm "
-                f"(half of the {tool_diameter}mm end mill). "
-                f"Add fillets to inside corners: Edit Mode > Edge select > Right click > "
-                f"Bevel Edge (Ctrl+B). Consider EDM for tight inside corners."
-            ),
-        ))
+        issues.append(
+            DFMIssue(
+                severity="error",
+                issue_type="tool_access",
+                location=f"Internal pocket radius on '{obj_name}'",
+                value=tool_diameter * 0.4,
+                threshold=tool_diameter / 2,
+                fix_suggestion=(
+                    f"Inside corner radius must be ≥ {tool_diameter / 2:.1f}mm "
+                    f"(half of the {tool_diameter}mm end mill). "
+                    f"Add fillets to inside corners: Edit Mode > Edge select > Right click > "
+                    f"Bevel Edge (Ctrl+B). Consider EDM for tight inside corners."
+                ),
+            )
+        )
         return issues
 
-    def check_undercuts(self, obj_name: str, pull_direction: str = "Z+") -> list[DFMIssue]:
+    def check_undercuts(
+        self, obj_name: str, pull_direction: str = "Z+"
+    ) -> list[DFMIssue]:
         issues = []
-        issues.append(DFMIssue(
-            severity="error",
-            issue_type="undercut",
-            location=f"Undercut region detected on '{obj_name}' along {pull_direction}",
-            value=-1.0,
-            threshold=0.0,
-            fix_suggestion=(
-                "Undercuts prevent mold ejection. Solutions: "
-                "(1) Add side-action (sliding) cores — increases tooling cost ~$5000-15000. "
-                "(2) Redesign feature to eliminate undercut. "
-                "(3) Use collapsible core for internal threads/features. "
-                "(4) Switch to two-shot molding or insert molding."
-            ),
-        ))
+        issues.append(
+            DFMIssue(
+                severity="error",
+                issue_type="undercut",
+                location=f"Undercut region detected on '{obj_name}' along {pull_direction}",
+                value=-1.0,
+                threshold=0.0,
+                fix_suggestion=(
+                    "Undercuts prevent mold ejection. Solutions: "
+                    "(1) Add side-action (sliding) cores — increases tooling cost ~$5000-15000. "
+                    "(2) Redesign feature to eliminate undercut. "
+                    "(3) Use collapsible core for internal threads/features. "
+                    "(4) Switch to two-shot molding or insert molding."
+                ),
+            )
+        )
         return issues
 
     def generate_dfm_report(self, obj_name: str, processes: list[str]) -> dict:
@@ -863,18 +883,20 @@ class DFMChecker:
                 issues += self.check_overhangs(obj_name)
             if process == "cnc":
                 issues += self.check_tool_access(obj_name, 6.0)
-            report["issues"].extend([
-                {
-                    "process": process,
-                    "severity": i.severity,
-                    "type": i.issue_type,
-                    "location": i.location,
-                    "value": i.value,
-                    "threshold": i.threshold,
-                    "fix": i.fix_suggestion,
-                }
-                for i in issues
-            ])
+            report["issues"].extend(
+                [
+                    {
+                        "process": process,
+                        "severity": i.severity,
+                        "type": i.issue_type,
+                        "location": i.location,
+                        "value": i.value,
+                        "threshold": i.threshold,
+                        "fix": i.fix_suggestion,
+                    }
+                    for i in issues
+                ]
+            )
         errors = sum(1 for i in report["issues"] if i["severity"] == "error")
         warnings = sum(1 for i in report["issues"] if i["severity"] == "warning")
         report["summary"] = {
@@ -897,22 +919,25 @@ class DFMChecker:
         for process, obj in scenarios:
             report = self.generate_dfm_report(obj, [process])
             for issue in report["issues"]:
-                pairs.append({
-                    "voice_command": f"Check if the {obj} is ready for {process.replace('_', ' ')}",
-                    "task_type": "UNDERSTAND",
-                    "scene_context": f"Single object '{obj}' selected",
-                    "response": (
-                        f"DFM check for {process.replace('_', ' ')} — "
-                        f"{issue['severity'].upper()}: {issue['location']}. "
-                        f"Measured {issue['value']:.2f}, required minimum {issue['threshold']:.2f}. "
-                        f"Fix: {issue['fix']}"
-                    ),
-                    "reasoning": f"DFM knowledge for {process} manufacturing process",
-                })
+                pairs.append(
+                    {
+                        "voice_command": f"Check if the {obj} is ready for {process.replace('_', ' ')}",
+                        "task_type": "UNDERSTAND",
+                        "scene_context": f"Single object '{obj}' selected",
+                        "response": (
+                            f"DFM check for {process.replace('_', ' ')} — "
+                            f"{issue['severity'].upper()}: {issue['location']}. "
+                            f"Measured {issue['value']:.2f}, required minimum {issue['threshold']:.2f}. "
+                            f"Fix: {issue['fix']}"
+                        ),
+                        "reasoning": f"DFM knowledge for {process} manufacturing process",
+                    }
+                )
         return pairs
 
 
 # ─── Assembly Agent ────────────────────────────────────────────────────────────
+
 
 class AssemblyAgent:
     """Handles multi-part assembly: mate inference, BOM, clearance checking."""
@@ -920,14 +945,16 @@ class AssemblyAgent:
     def infer_mates(self, object_names: list[str]) -> list[Mate]:
         mates = []
         for i in range(len(object_names) - 1):
-            mates.append(Mate(
-                object_a=object_names[i],
-                object_b=object_names[i + 1],
-                mate_type="flush",
-                face_a="bottom",
-                face_b="top",
-                offset=0.0,
-            ))
+            mates.append(
+                Mate(
+                    object_a=object_names[i],
+                    object_b=object_names[i + 1],
+                    mate_type="flush",
+                    face_a="bottom",
+                    face_b="top",
+                    offset=0.0,
+                )
+            )
         return mates
 
     def generate_bom(self, scene_objects: list[str]) -> list[BOMRow]:
@@ -935,20 +962,26 @@ class AssemblyAgent:
         for i, name in enumerate(scene_objects, 1):
             mat_key = random.choice(list(ENGINEERING_MATERIALS.keys()))
             mat = ENGINEERING_MATERIALS[mat_key]
-            dims = (random.uniform(10, 500), random.uniform(10, 300), random.uniform(5, 150))
+            dims = (
+                random.uniform(10, 500),
+                random.uniform(10, 300),
+                random.uniform(5, 150),
+            )
             vol_m3 = (dims[0] * dims[1] * dims[2]) * 1e-9
             weight = vol_m3 * mat["density"]
             cost = weight * mat["cost_per_kg"]
-            rows.append(BOMRow(
-                item_number=i,
-                name=name,
-                quantity=1,
-                material=mat_key.replace("_", " ").title(),
-                dimensions_mm=dims,
-                weight_kg=weight,
-                cost_estimate_usd=cost,
-                notes="",
-            ))
+            rows.append(
+                BOMRow(
+                    item_number=i,
+                    name=name,
+                    quantity=1,
+                    material=mat_key.replace("_", " ").title(),
+                    dimensions_mm=dims,
+                    weight_kg=weight,
+                    cost_estimate_usd=cost,
+                    notes="",
+                )
+            )
         return rows
 
     def check_clearances(
@@ -959,21 +992,25 @@ class AssemblyAgent:
             for j in range(i + 1, len(object_names)):
                 clearance = random.uniform(0, min_clearance * 2)
                 if clearance < min_clearance:
-                    conflicts.append(Conflict(
-                        object_a=object_names[i],
-                        object_b=object_names[j],
-                        clearance_mm=clearance,
-                        required_clearance_mm=min_clearance,
-                        location="overlapping bounding boxes — verify exact faces",
-                    ))
+                    conflicts.append(
+                        Conflict(
+                            object_a=object_names[i],
+                            object_b=object_names[j],
+                            clearance_mm=clearance,
+                            required_clearance_mm=min_clearance,
+                            location="overlapping bounding boxes — verify exact faces",
+                        )
+                    )
         return conflicts
 
-    def generate_assembly_animation(self, object_names: list[str], sequence: list[int]) -> str:
+    def generate_assembly_animation(
+        self, object_names: list[str], sequence: list[int]
+    ) -> str:
         lines = [
             "import bpy\n",
             "# Assembly explode animation — parts fly in from above\n",
-            f"scene = bpy.context.scene\n",
-            f"fps = scene.render.fps\n",
+            "scene = bpy.context.scene\n",
+            "fps = scene.render.fps\n",
         ]
         for frame, idx in enumerate(sequence):
             if idx < len(object_names):
@@ -983,13 +1020,18 @@ class AssemblyAgent:
                 lines.append(f"\nobj_{idx} = bpy.data.objects.get('{name}')")
                 lines.append(f"\nif obj_{idx}:")
                 lines.append(f"\n    obj_{idx}.location.z += 3.0  # exploded position")
-                lines.append(f"\n    obj_{idx}.keyframe_insert('location', frame={start_frame})")
+                lines.append(
+                    f"\n    obj_{idx}.keyframe_insert('location', frame={start_frame})"
+                )
                 lines.append(f"\n    obj_{idx}.location.z -= 3.0  # assembled position")
-                lines.append(f"\n    obj_{idx}.keyframe_insert('location', frame={end_frame})")
+                lines.append(
+                    f"\n    obj_{idx}.keyframe_insert('location', frame={end_frame})"
+                )
         return "".join(lines)
 
 
 # ─── Drawing Generator ─────────────────────────────────────────────────────────
+
 
 class DrawingGenerator:
     """Generate 2D engineering drawings from 3D Blender objects."""
@@ -1048,7 +1090,7 @@ if not obj:
     raise ValueError("{obj_name} not found")
 
 # Boolean section cut along {axis} axis at offset {offset}
-bpy.ops.mesh.primitive_plane_add(size=100, location=({offset if axis == 'X' else 0}, 0, 0))
+bpy.ops.mesh.primitive_plane_add(size=100, location=({offset if axis == "X" else 0}, 0, 0))
 cutter = bpy.context.active_object
 cutter.name = "SectionCutter"
 if "{axis}" == "X":
@@ -1083,7 +1125,9 @@ if obj:
     print(f"Dimensions: X={{x_dim*1000:.1f}}mm  Y={{y_dim*1000:.1f}}mm  Z={{z_dim*1000:.1f}}mm")
 """.strip()
 
-    def add_tolerances(self, drawing_obj_name: str, gdt_standard: str = "ASME_Y14.5") -> str:
+    def add_tolerances(
+        self, drawing_obj_name: str, gdt_standard: str = "ASME_Y14.5"
+    ) -> str:
         return f"""
 # GD&T annotations per {gdt_standard}
 # Add flatness, parallelism, perpendicularity tolerances
@@ -1096,6 +1140,7 @@ print("Flatness tolerance: 0.05mm | Parallelism: 0.1mm | Perpendicularity: 0.1mm
 
 # ─── Additive Manufacturing Agent ─────────────────────────────────────────────
 
+
 class AdditiveManufacturingAgent:
     """Lattice structures, print orientation, and support generation for AM."""
 
@@ -1103,10 +1148,10 @@ class AdditiveManufacturingAgent:
         "bcc": "Body-centered cubic. Good isotropy, ~20% relative density typical.",
         "fcc": "Face-centered cubic. High stiffness-to-weight in all directions.",
         "gyroid": "Triply-periodic minimal surface (TPMS). Excellent energy absorption, "
-                  "no disconnected nodes, self-supporting up to 45°.",
+        "no disconnected nodes, self-supporting up to 45°.",
         "voronoi": "Organic random cells. Natural-looking, good vibration damping.",
         "kelvin_cell": "Truncated octahedron. Minimal surface energy, optimal packing, "
-                       "used in bone scaffolds.",
+        "used in bone scaffolds.",
     }
 
     def generate_lattice(
@@ -1159,7 +1204,7 @@ print(f"For SLM titanium: 0.3mm strut min. For FDM: 0.8mm strut min.")
                 "anisotropy_risk": "low",
                 "build_time_hrs": 3.2,
                 "recommendation": "Best surface quality and lowest support. "
-                                  "Use if the flat face is non-functional.",
+                "Use if the flat face is non-functional.",
             },
             {
                 "orientation": "Upright (Y-up)",
@@ -1168,7 +1213,7 @@ print(f"For SLM titanium: 0.3mm strut min. For FDM: 0.8mm strut min.")
                 "anisotropy_risk": "high",
                 "build_time_hrs": 5.8,
                 "recommendation": "Tall prints risk warping. Brace with brim. "
-                                  "Avoid for parts with critical Z-direction loads.",
+                "Avoid for parts with critical Z-direction loads.",
             },
             {
                 "orientation": "45° diagonal",
@@ -1177,10 +1222,15 @@ print(f"For SLM titanium: 0.3mm strut min. For FDM: 0.8mm strut min.")
                 "anisotropy_risk": "medium",
                 "build_time_hrs": 4.1,
                 "recommendation": "Good balance for complex geometries. "
-                                  "Eliminates pure horizontal overhangs.",
+                "Eliminates pure horizontal overhangs.",
             },
         ]
-        best = min(orientations, key=lambda x: x["support_volume_pct"] + (10 if x["anisotropy_risk"] == "high" else 0))
+        best = min(
+            orientations,
+            key=lambda x: (
+                x["support_volume_pct"] + (10 if x["anisotropy_risk"] == "high" else 0)
+            ),
+        )
         return {
             "object": obj_name,
             "recommended": best,
@@ -1258,23 +1308,58 @@ print(f"Added {{n_layers // max(1, n_layers // 10)}} preview slice planes.")
 
 # ─── Training Pair Generation ──────────────────────────────────────────────────
 
+
 def _material_selection_pairs() -> list[dict]:
     pairs = []
     scenarios = [
-        ("aerospace bracket", "aerospace", ["aluminum_7075_t6", "titanium_ti6al4v", "carbon_fiber_composite_ud"]),
+        (
+            "aerospace bracket",
+            "aerospace",
+            ["aluminum_7075_t6", "titanium_ti6al4v", "carbon_fiber_composite_ud"],
+        ),
         ("phone case", "consumer", ["tpu_95a", "polycarbonate", "nylon_pa12"]),
-        ("injection mold", "tooling", ["steel_h13_tool", "steel_d2_tool", "beryllium_copper"]),
-        ("corrosive chemical pump", "chemical", ["inconel_625", "hastelloy_c276", "peek"]),
-        ("bicycle frame", "consumer", ["aluminum_6061_t6", "carbon_fiber_composite_woven", "steel_mild_1018"]),
+        (
+            "injection mold",
+            "tooling",
+            ["steel_h13_tool", "steel_d2_tool", "beryllium_copper"],
+        ),
+        (
+            "corrosive chemical pump",
+            "chemical",
+            ["inconel_625", "hastelloy_c276", "peek"],
+        ),
+        (
+            "bicycle frame",
+            "consumer",
+            ["aluminum_6061_t6", "carbon_fiber_composite_woven", "steel_mild_1018"],
+        ),
         ("surgical implant", "medical", ["titanium_ti6al4v", "peek", "alumina_al2o3"]),
-        ("heat sink", "thermal", ["aluminum_6061_t6", "copper_c11000", "aluminum_6061_t6"]),
-        ("marine propeller", "marine", ["steel_316_stainless", "brass_c360", "aluminum_5052_h32"]),
-        ("race car suspension", "motorsport", ["aluminum_7075_t6", "titanium_ti6al4v", "steel_4140_chromoly"]),
+        (
+            "heat sink",
+            "thermal",
+            ["aluminum_6061_t6", "copper_c11000", "aluminum_6061_t6"],
+        ),
+        (
+            "marine propeller",
+            "marine",
+            ["steel_316_stainless", "brass_c360", "aluminum_5052_h32"],
+        ),
+        (
+            "race car suspension",
+            "motorsport",
+            ["aluminum_7075_t6", "titanium_ti6al4v", "steel_4140_chromoly"],
+        ),
         ("guitar body", "consumer", ["nylon_pa12", "abs", "pla"]),
     ]
     for application, category, candidates in scenarios:
-        mats = {k: ENGINEERING_MATERIALS[k] for k in candidates if k in ENGINEERING_MATERIALS}
-        best = min(mats.items(), key=lambda x: -x[1]["yield_strength"] / x[1]["density"])
+        mats = {
+            k: ENGINEERING_MATERIALS[k]
+            for k in candidates
+            if k in ENGINEERING_MATERIALS
+        }
+        best = min(
+            mats.items(), key=lambda x: -x[1]["yield_strength"] / x[1]["density"]
+        )
         reasoning = (
             f"For a {application}, specific strength (yield/density) is key. "
             f"{best[0].replace('_', ' ').title()} wins: "
@@ -1282,32 +1367,44 @@ def _material_selection_pairs() -> list[dict]:
             f"Cost: ${best[1]['cost_per_kg']}/kg. "
             f"{best[1]['notes']}"
         )
-        pairs.append({
-            "voice_command": f"What material should I use for a {application}?",
-            "task_type": "UNDERSTAND",
-            "scene_context": "no objects selected",
-            "response": reasoning,
-            "reasoning": f"Material selection for {category} application using specific strength analysis",
-        })
+        pairs.append(
+            {
+                "voice_command": f"What material should I use for a {application}?",
+                "task_type": "UNDERSTAND",
+                "scene_context": "no objects selected",
+                "response": reasoning,
+                "reasoning": f"Material selection for {category} application using specific strength analysis",
+            }
+        )
     return pairs
 
 
 def _topology_pairs() -> list[dict]:
     pairs = []
-    objects = ["bracket", "wing_rib", "suspension_arm", "medical_implant", "heatsink_mount"]
+    objects = [
+        "bracket",
+        "wing_rib",
+        "suspension_arm",
+        "medical_implant",
+        "heatsink_mount",
+    ]
     use_cases = ["aerospace", "automotive", "consumer", "medical"]
     optimizer = TopologyOptimizer()
     for obj in objects:
         for use_case in use_cases:
             params = optimizer.suggest_optimization_params(obj, use_case)
-            pairs.append({
-                "voice_command": f"Optimize the {obj.replace('_', ' ')} for {use_case} use — minimize weight",
-                "task_type": "BUILD",
-                "scene_context": f"'{obj}' selected",
-                "blender_python": optimizer.simp_optimize(obj, 1000.0, ["base_face"], params["volume_fraction"]),
-                "response": optimizer.explain_optimization(params),
-                "reasoning": f"Topology optimization for {use_case} application",
-            })
+            pairs.append(
+                {
+                    "voice_command": f"Optimize the {obj.replace('_', ' ')} for {use_case} use — minimize weight",
+                    "task_type": "BUILD",
+                    "scene_context": f"'{obj}' selected",
+                    "blender_python": optimizer.simp_optimize(
+                        obj, 1000.0, ["base_face"], params["volume_fraction"]
+                    ),
+                    "response": optimizer.explain_optimization(params),
+                    "reasoning": f"Topology optimization for {use_case} application",
+                }
+            )
     return pairs
 
 
@@ -1333,13 +1430,15 @@ def _dfm_pairs() -> list[dict]:
             if report["issues"]:
                 first = report["issues"][0]
                 response += f"Critical: {first['location']}. Fix: {first['fix']}"
-            pairs.append({
-                "voice_command": f"Is the {obj} manufacturable by {process_names[process]}?",
-                "task_type": "UNDERSTAND",
-                "scene_context": f"'{obj}' selected",
-                "response": response,
-                "reasoning": f"DFM analysis for {process}",
-            })
+            pairs.append(
+                {
+                    "voice_command": f"Is the {obj} manufacturable by {process_names[process]}?",
+                    "task_type": "UNDERSTAND",
+                    "scene_context": f"'{obj}' selected",
+                    "response": response,
+                    "reasoning": f"DFM analysis for {process}",
+                }
+            )
     return pairs
 
 
@@ -1356,20 +1455,22 @@ def _bom_pairs() -> list[dict]:
         total_weight = sum(r.weight_kg for r in bom)
         total_cost = sum(r.cost_estimate_usd for r in bom)
         bom_text = " | ".join(
-            f"{r.name}: {r.material}, {r.weight_kg*1000:.0f}g, ${r.cost_estimate_usd:.2f}"
+            f"{r.name}: {r.material}, {r.weight_kg * 1000:.0f}g, ${r.cost_estimate_usd:.2f}"
             for r in bom
         )
-        pairs.append({
-            "voice_command": f"Generate a bill of materials for this assembly ({', '.join(parts)})",
-            "task_type": "UNDERSTAND",
-            "scene_context": f"Objects in scene: {parts}",
-            "response": (
-                f"BOM generated ({len(parts)} items). "
-                f"Total weight: {total_weight*1000:.0f}g | Total cost est: ${total_cost:.2f}\n"
-                f"{bom_text}"
-            ),
-            "reasoning": "Bill of Materials generation from scene hierarchy",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Generate a bill of materials for this assembly ({', '.join(parts)})",
+                "task_type": "UNDERSTAND",
+                "scene_context": f"Objects in scene: {parts}",
+                "response": (
+                    f"BOM generated ({len(parts)} items). "
+                    f"Total weight: {total_weight * 1000:.0f}g | Total cost est: ${total_cost:.2f}\n"
+                    f"{bom_text}"
+                ),
+                "reasoning": "Bill of Materials generation from scene hierarchy",
+            }
+        )
     return pairs
 
 
@@ -1384,18 +1485,20 @@ def _lattice_pairs() -> list[dict]:
         ("aerospace_bracket", "fcc", 3.0),
     ]
     for obj, lattice_type, cell_size in configs:
-        pairs.append({
-            "voice_command": f"Fill the {obj.replace('_', ' ')} with a {lattice_type} lattice, {cell_size}mm cells",
-            "task_type": "BUILD",
-            "scene_context": f"'{obj}' selected",
-            "blender_python": agent.generate_lattice(obj, lattice_type, cell_size),
-            "response": (
-                f"Generated {lattice_type.upper()} lattice with {cell_size}mm unit cells in '{obj}'. "
-                f"{agent.LATTICE_DESCRIPTIONS[lattice_type]} "
-                f"Apply modifiers to bake. Check minimum strut thickness > 0.3mm for LPBF."
-            ),
-            "reasoning": f"Additive manufacturing lattice structure generation",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Fill the {obj.replace('_', ' ')} with a {lattice_type} lattice, {cell_size}mm cells",
+                "task_type": "BUILD",
+                "scene_context": f"'{obj}' selected",
+                "blender_python": agent.generate_lattice(obj, lattice_type, cell_size),
+                "response": (
+                    f"Generated {lattice_type.upper()} lattice with {cell_size}mm unit cells in '{obj}'. "
+                    f"{agent.LATTICE_DESCRIPTIONS[lattice_type]} "
+                    f"Apply modifiers to bake. Check minimum strut thickness > 0.3mm for LPBF."
+                ),
+                "reasoning": "Additive manufacturing lattice structure generation",
+            }
+        )
     return pairs
 
 
@@ -1404,33 +1507,39 @@ def _drawing_pairs() -> list[dict]:
     generator = DrawingGenerator()
     objects = ["bracket", "housing", "plate"]
     for obj in objects:
-        pairs.append({
-            "voice_command": f"Generate a front elevation drawing of the {obj}",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{obj}' selected",
-            "blender_python": generator.front_elevation(obj),
-            "response": f"Set up orthographic front elevation camera for '{obj}'. Press F12 to render drawing.",
-            "reasoning": "2D engineering drawing generation from 3D geometry",
-        })
-        pairs.append({
-            "voice_command": f"Create a section view of the {obj} cut at the midpoint",
-            "task_type": "EXECUTE",
-            "scene_context": f"'{obj}' selected",
-            "blender_python": generator.section_cut(obj, {"axis": "X", "offset": 0.0}),
-            "response": f"Section cut applied to '{obj}' at X=0. Use front elevation camera to view.",
-            "reasoning": "Section cut view for internal feature inspection",
-        })
+        pairs.append(
+            {
+                "voice_command": f"Generate a front elevation drawing of the {obj}",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{obj}' selected",
+                "blender_python": generator.front_elevation(obj),
+                "response": f"Set up orthographic front elevation camera for '{obj}'. Press F12 to render drawing.",
+                "reasoning": "2D engineering drawing generation from 3D geometry",
+            }
+        )
+        pairs.append(
+            {
+                "voice_command": f"Create a section view of the {obj} cut at the midpoint",
+                "task_type": "EXECUTE",
+                "scene_context": f"'{obj}' selected",
+                "blender_python": generator.section_cut(
+                    obj, {"axis": "X", "offset": 0.0}
+                ),
+                "response": f"Section cut applied to '{obj}' at X=0. Use front elevation camera to view.",
+                "reasoning": "Section cut view for internal feature inspection",
+            }
+        )
     return pairs
 
 
 def generate_cad_pairs() -> list[dict]:
     all_pairs: list[dict] = []
-    all_pairs += _material_selection_pairs()        # ~10
-    all_pairs += _topology_pairs()                  # ~20
-    all_pairs += _dfm_pairs()                       # ~25
-    all_pairs += _bom_pairs()                       # ~3
-    all_pairs += _lattice_pairs()                   # ~5
-    all_pairs += _drawing_pairs()                   # ~6
+    all_pairs += _material_selection_pairs()  # ~10
+    all_pairs += _topology_pairs()  # ~20
+    all_pairs += _dfm_pairs()  # ~25
+    all_pairs += _bom_pairs()  # ~3
+    all_pairs += _lattice_pairs()  # ~5
+    all_pairs += _drawing_pairs()  # ~6
     all_pairs += DFMChecker().generate_training_pairs()  # ~25
 
     # ── Additional explanation pairs ────────────────────────────────────────
@@ -1559,37 +1668,46 @@ def generate_cad_pairs() -> list[dict]:
     # ── Pad to 300+ with material property Q&A ──────────────────────────────
     for mat_name, mat_props in list(ENGINEERING_MATERIALS.items())[:50]:
         display = mat_name.replace("_", " ").title()
-        all_pairs.append({
-            "voice_command": f"What are the mechanical properties of {display}?",
-            "task_type": "UNDERSTAND",
-            "scene_context": "no objects selected",
-            "response": (
-                f"{display}: Density {mat_props['density']} kg/m³ | "
-                f"Yield strength {mat_props['yield_strength']} MPa | "
-                f"Elastic modulus {mat_props['elastic_modulus']} GPa | "
-                f"Fracture toughness {mat_props['fracture_toughness']} MPa√m | "
-                f"Thermal conductivity {mat_props['thermal_conductivity']} W/mK | "
-                f"Cost ${mat_props['cost_per_kg']}/kg | "
-                f"Machinability {mat_props['machinability']}/10 | "
-                f"Printability {mat_props['printability']}/10 | "
-                f"Corrosion resistance {mat_props['corrosion_resistance']}/10. "
-                f"{mat_props['notes']}"
-            ),
-            "reasoning": f"Engineering material property lookup for {display}",
-        })
+        all_pairs.append(
+            {
+                "voice_command": f"What are the mechanical properties of {display}?",
+                "task_type": "UNDERSTAND",
+                "scene_context": "no objects selected",
+                "response": (
+                    f"{display}: Density {mat_props['density']} kg/m³ | "
+                    f"Yield strength {mat_props['yield_strength']} MPa | "
+                    f"Elastic modulus {mat_props['elastic_modulus']} GPa | "
+                    f"Fracture toughness {mat_props['fracture_toughness']} MPa√m | "
+                    f"Thermal conductivity {mat_props['thermal_conductivity']} W/mK | "
+                    f"Cost ${mat_props['cost_per_kg']}/kg | "
+                    f"Machinability {mat_props['machinability']}/10 | "
+                    f"Printability {mat_props['printability']}/10 | "
+                    f"Corrosion resistance {mat_props['corrosion_resistance']}/10. "
+                    f"{mat_props['notes']}"
+                ),
+                "reasoning": f"Engineering material property lookup for {display}",
+            }
+        )
 
     return all_pairs
 
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Nalana CAD Agent")
-    parser.add_argument("--generate-pairs", action="store_true", help="Generate CAD training pairs")
+    parser.add_argument(
+        "--generate-pairs", action="store_true", help="Generate CAD training pairs"
+    )
     parser.add_argument("--dfm-check", metavar="OBJECT", help="Run DFM check on object")
-    parser.add_argument("--process", default="fdm", help="Manufacturing process for DFM check")
+    parser.add_argument(
+        "--process", default="fdm", help="Manufacturing process for DFM check"
+    )
     parser.add_argument("--optimize", metavar="OBJECT", help="Topology optimize object")
-    parser.add_argument("--use-case", default="consumer", help="Use case for optimization")
+    parser.add_argument(
+        "--use-case", default="consumer", help="Use case for optimization"
+    )
     parser.add_argument("--output", default=str(PAIRS_OUTPUT), help="Output JSONL path")
     args = parser.parse_args()
 
@@ -1610,7 +1728,9 @@ def main() -> None:
     elif args.optimize:
         optimizer = TopologyOptimizer()
         params = optimizer.suggest_optimization_params(args.optimize, args.use_case)
-        code = optimizer.simp_optimize(args.optimize, 1000.0, ["base"], params["volume_fraction"])
+        code = optimizer.simp_optimize(
+            args.optimize, 1000.0, ["base"], params["volume_fraction"]
+        )
         print(f"# Topology optimization parameters: {json.dumps(params, indent=2)}")
         print(code)
 

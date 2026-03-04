@@ -34,7 +34,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import List, Optional
 
@@ -94,20 +94,21 @@ PLATFORM_PROFILES = {
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class QAIssue:
     category: str
-    severity: str          # "error" | "warning" | "info"
+    severity: str  # "error" | "warning" | "info"
     object_name: str
     description: str
-    fix_command: str       # Python code that auto-fixes the issue (or "" if not fixable)
+    fix_command: str  # Python code that auto-fixes the issue (or "" if not fixable)
     auto_fixable: bool
 
 
 @dataclass
 class QAReport:
     passed: bool
-    score: float           # 0-100
+    score: float  # 0-100
     issues: List[QAIssue]
     warnings: List[QAIssue]
     info: List[str]
@@ -130,14 +131,14 @@ class QAReport:
         e = len(self.issues)
         w = len(self.warnings)
         return (
-            f"QA {status} | Score: {self.score:.1f}/100 | "
-            f"Errors: {e} | Warnings: {w}"
+            f"QA {status} | Score: {self.score:.1f}/100 | Errors: {e} | Warnings: {w}"
         )
 
 
 # ---------------------------------------------------------------------------
 # Individual check functions (bpy-based, run inside Blender)
 # ---------------------------------------------------------------------------
+
 
 def _check_naming_conventions(context) -> List[QAIssue]:
     """
@@ -165,62 +166,72 @@ def _check_naming_conventions(context) -> List[QAIssue]:
 
         # Default names
         if DEFAULT_NAMES.match(name):
-            issues.append(QAIssue(
-                category="naming",
-                severity="warning",
-                object_name=name,
-                description=f"Object '{name}' uses a default Blender name. Rename it to something descriptive.",
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="naming",
+                    severity="warning",
+                    object_name=name,
+                    description=f"Object '{name}' uses a default Blender name. Rename it to something descriptive.",
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
         # Trailing spaces
         if name != name.strip():
-            issues.append(QAIssue(
-                category="naming",
-                severity="error",
-                object_name=name,
-                description=f"Object '{name}' has leading/trailing whitespace in its name.",
-                fix_command=f"import bpy; bpy.data.objects['{name}'].name = '{name.strip()}'",
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="naming",
+                    severity="error",
+                    object_name=name,
+                    description=f"Object '{name}' has leading/trailing whitespace in its name.",
+                    fix_command=f"import bpy; bpy.data.objects['{name}'].name = '{name.strip()}'",
+                    auto_fixable=True,
+                )
+            )
 
         # Invalid characters
         if not VALID_NAME.match(name):
-            issues.append(QAIssue(
-                category="naming",
-                severity="warning",
-                object_name=name,
-                description=f"Object name '{name}' contains invalid characters (spaces, special chars). Use snake_case.",
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="naming",
+                    severity="warning",
+                    object_name=name,
+                    description=f"Object name '{name}' contains invalid characters (spaces, special chars). Use snake_case.",
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
         # Check material slot names
         if obj.type == "MESH":
             for slot in obj.material_slots:
                 if slot.material and DEFAULT_NAMES.match(slot.material.name):
-                    issues.append(QAIssue(
-                        category="naming",
-                        severity="warning",
-                        object_name=name,
-                        description=f"Material '{slot.material.name}' on '{name}' uses a default name.",
-                        fix_command="",
-                        auto_fixable=False,
-                    ))
+                    issues.append(
+                        QAIssue(
+                            category="naming",
+                            severity="warning",
+                            object_name=name,
+                            description=f"Material '{slot.material.name}' on '{name}' uses a default name.",
+                            fix_command="",
+                            auto_fixable=False,
+                        )
+                    )
 
             # UV map names
             for uv in obj.data.uv_layers:
                 if uv.name not in ("UVMap", "UVMap_base", "UVMap_detail", "UVMap_lm"):
                     if not uv.name.startswith("UVMap"):
-                        issues.append(QAIssue(
-                            category="naming",
-                            severity="info",
-                            object_name=name,
-                            description=f"UV map '{uv.name}' on '{name}' — convention is 'UVMap' or 'UVMap_<suffix>'.",
-                            fix_command="",
-                            auto_fixable=False,
-                        ))
+                        issues.append(
+                            QAIssue(
+                                category="naming",
+                                severity="info",
+                                object_name=name,
+                                description=f"UV map '{uv.name}' on '{name}' — convention is 'UVMap' or 'UVMap_<suffix>'.",
+                                fix_command="",
+                                auto_fixable=False,
+                            )
+                        )
 
     return issues
 
@@ -247,42 +258,50 @@ def _check_transforms(context) -> List[QAIssue]:
 
         # Unapplied scale
         sx, sy, sz = obj.scale
-        if abs(sx - 1.0) > SCALE_EPSILON or abs(sy - 1.0) > SCALE_EPSILON or abs(sz - 1.0) > SCALE_EPSILON:
-            issues.append(QAIssue(
-                category="transforms",
-                severity="error",
-                object_name=name,
-                description=(
-                    f"Object '{name}' has unapplied scale ({sx:.3f}, {sy:.3f}, {sz:.3f}). "
-                    "Apply scale before export or rigging."
-                ),
-                fix_command=(
-                    f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.data.objects['{name}'].select_set(True); "
-                    f"bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)"
-                ),
-                auto_fixable=True,
-            ))
+        if (
+            abs(sx - 1.0) > SCALE_EPSILON
+            or abs(sy - 1.0) > SCALE_EPSILON
+            or abs(sz - 1.0) > SCALE_EPSILON
+        ):
+            issues.append(
+                QAIssue(
+                    category="transforms",
+                    severity="error",
+                    object_name=name,
+                    description=(
+                        f"Object '{name}' has unapplied scale ({sx:.3f}, {sy:.3f}, {sz:.3f}). "
+                        "Apply scale before export or rigging."
+                    ),
+                    fix_command=(
+                        f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.data.objects['{name}'].select_set(True); "
+                        f"bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
         # Unapplied rotation
         rx, ry, rz = obj.rotation_euler
         if abs(rx) > ROT_EPSILON or abs(ry) > ROT_EPSILON or abs(rz) > ROT_EPSILON:
-            issues.append(QAIssue(
-                category="transforms",
-                severity="warning",
-                object_name=name,
-                description=(
-                    f"Object '{name}' has non-zero rotation "
-                    f"({math.degrees(rx):.1f}°, {math.degrees(ry):.1f}°, {math.degrees(rz):.1f}°). "
-                    "Apply rotation if this is a non-animated asset."
-                ),
-                fix_command=(
-                    f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.data.objects['{name}'].select_set(True); "
-                    f"bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="transforms",
+                    severity="warning",
+                    object_name=name,
+                    description=(
+                        f"Object '{name}' has non-zero rotation "
+                        f"({math.degrees(rx):.1f}°, {math.degrees(ry):.1f}°, {math.degrees(rz):.1f}°). "
+                        "Apply rotation if this is a non-animated asset."
+                    ),
+                    fix_command=(
+                        f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.data.objects['{name}'].select_set(True); "
+                        f"bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
         # Origin far from geometry
         if obj.type == "MESH" and obj.data.vertices:
@@ -291,21 +310,23 @@ def _check_transforms(context) -> List[QAIssue]:
             origin = obj.location
             dist = (center - origin).length
             if dist > 1.0:  # more than 1 unit away
-                issues.append(QAIssue(
-                    category="transforms",
-                    severity="warning",
-                    object_name=name,
-                    description=(
-                        f"Object '{name}' origin is {dist:.2f} units from geometry center. "
-                        "Consider setting origin to geometry center."
-                    ),
-                    fix_command=(
-                        f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                        f"bpy.data.objects['{name}'].select_set(True); "
-                        f"bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')"
-                    ),
-                    auto_fixable=True,
-                ))
+                issues.append(
+                    QAIssue(
+                        category="transforms",
+                        severity="warning",
+                        object_name=name,
+                        description=(
+                            f"Object '{name}' origin is {dist:.2f} units from geometry center. "
+                            "Consider setting origin to geometry center."
+                        ),
+                        fix_command=(
+                            f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                            f"bpy.data.objects['{name}'].select_set(True); "
+                            f"bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')"
+                        ),
+                        auto_fixable=True,
+                    )
+                )
 
     return issues
 
@@ -331,21 +352,23 @@ def _check_uv_issues(context) -> List[QAIssue]:
 
         # Missing UVs
         if len(mesh.uv_layers) == 0:
-            issues.append(QAIssue(
-                category="uv",
-                severity="error",
-                object_name=name,
-                description=f"Object '{name}' has no UV maps. Cannot bake or export textures.",
-                fix_command=(
-                    f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.data.objects['{name}'].select_set(True); "
-                    f"bpy.ops.object.editmode_toggle(); "
-                    f"bpy.ops.mesh.select_all(action='SELECT'); "
-                    f"bpy.ops.uv.smart_project(angle_limit=66.0, margin_method='SCALED', island_margin=0.02); "
-                    f"bpy.ops.object.editmode_toggle()"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="uv",
+                    severity="error",
+                    object_name=name,
+                    description=f"Object '{name}' has no UV maps. Cannot bake or export textures.",
+                    fix_command=(
+                        f"import bpy; bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.data.objects['{name}'].select_set(True); "
+                        f"bpy.ops.object.editmode_toggle(); "
+                        f"bpy.ops.mesh.select_all(action='SELECT'); "
+                        f"bpy.ops.uv.smart_project(angle_limit=66.0, margin_method='SCALED', island_margin=0.02); "
+                        f"bpy.ops.object.editmode_toggle()"
+                    ),
+                    auto_fixable=True,
+                )
+            )
             continue
 
         # Check UV bounds and zero-area faces via bmesh
@@ -385,30 +408,34 @@ def _check_uv_issues(context) -> List[QAIssue]:
         bm.free()
 
         if out_of_bounds_count > 0:
-            issues.append(QAIssue(
-                category="uv",
-                severity="warning",
-                object_name=name,
-                description=(
-                    f"{out_of_bounds_count} UV face(s) on '{name}' are outside the [0,1] UV space. "
-                    "This causes tiling artifacts unless UDIM is intentional."
-                ),
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="uv",
+                    severity="warning",
+                    object_name=name,
+                    description=(
+                        f"{out_of_bounds_count} UV face(s) on '{name}' are outside the [0,1] UV space. "
+                        "This causes tiling artifacts unless UDIM is intentional."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
         if zero_area_count > 0:
-            issues.append(QAIssue(
-                category="uv",
-                severity="warning",
-                object_name=name,
-                description=(
-                    f"{zero_area_count} zero-area UV face(s) on '{name}'. "
-                    "These faces have collapsed UVs and will appear as black spots when baked."
-                ),
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="uv",
+                    severity="warning",
+                    object_name=name,
+                    description=(
+                        f"{zero_area_count} zero-area UV face(s) on '{name}'. "
+                        "These faces have collapsed UVs and will appear as black spots when baked."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
     return issues
 
@@ -461,86 +488,94 @@ def _check_topology(context, profile: dict) -> List[QAIssue]:
         bm.free()
 
         if ngon_count > 0:
-            issues.append(QAIssue(
-                category="topology",
-                severity="error",
-                object_name=name,
-                description=(
-                    f"{ngon_count} n-gon(s) found on '{name}'. "
-                    "N-gons break subdivision, skinning, and deformation. Triangulate or quad-fill these."
-                ),
-                fix_command=(
-                    f"import bpy, bmesh; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.ops.object.editmode_toggle(); "
-                    f"bpy.ops.mesh.select_all(action='SELECT'); "
-                    f"bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY'); "
-                    f"bpy.ops.object.editmode_toggle()"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="topology",
+                    severity="error",
+                    object_name=name,
+                    description=(
+                        f"{ngon_count} n-gon(s) found on '{name}'. "
+                        "N-gons break subdivision, skinning, and deformation. Triangulate or quad-fill these."
+                    ),
+                    fix_command=(
+                        f"import bpy, bmesh; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.ops.object.editmode_toggle(); "
+                        f"bpy.ops.mesh.select_all(action='SELECT'); "
+                        f"bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY'); "
+                        f"bpy.ops.object.editmode_toggle()"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
         if zero_face_count > 0:
-            issues.append(QAIssue(
-                category="topology",
-                severity="error",
-                object_name=name,
-                description=(
-                    f"{zero_face_count} zero-area (degenerate) face(s) on '{name}'. "
-                    "These are invisible geometry that cause rendering artifacts."
-                ),
-                fix_command=(
-                    f"import bpy; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.ops.object.editmode_toggle(); "
-                    f"bpy.ops.mesh.select_all(action='SELECT'); "
-                    f"bpy.ops.mesh.dissolve_degenerate(threshold=0.0001); "
-                    f"bpy.ops.object.editmode_toggle()"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="topology",
+                    severity="error",
+                    object_name=name,
+                    description=(
+                        f"{zero_face_count} zero-area (degenerate) face(s) on '{name}'. "
+                        "These are invisible geometry that cause rendering artifacts."
+                    ),
+                    fix_command=(
+                        f"import bpy; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.ops.object.editmode_toggle(); "
+                        f"bpy.ops.mesh.select_all(action='SELECT'); "
+                        f"bpy.ops.mesh.dissolve_degenerate(threshold=0.0001); "
+                        f"bpy.ops.object.editmode_toggle()"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
         if non_manifold_edge_count > 0:
             severity = "error" if profile.get("require_watertight") else "warning"
-            issues.append(QAIssue(
-                category="topology",
-                severity=severity,
-                object_name=name,
-                description=(
-                    f"{non_manifold_edge_count} non-manifold edge(s) on '{name}'. "
-                    "Mesh is not watertight — will fail 3D printing and cause issues in physics sims."
-                ),
-                fix_command=(
-                    f"import bpy; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.ops.object.editmode_toggle(); "
-                    f"bpy.ops.mesh.select_all(action='DESELECT'); "
-                    f"bpy.ops.mesh.select_non_manifold(); "
-                    f"bpy.ops.object.editmode_toggle()"
-                ),
-                auto_fixable=False,  # selection only, actual fix is manual
-            ))
+            issues.append(
+                QAIssue(
+                    category="topology",
+                    severity=severity,
+                    object_name=name,
+                    description=(
+                        f"{non_manifold_edge_count} non-manifold edge(s) on '{name}'. "
+                        "Mesh is not watertight — will fail 3D printing and cause issues in physics sims."
+                    ),
+                    fix_command=(
+                        f"import bpy; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.ops.object.editmode_toggle(); "
+                        f"bpy.ops.mesh.select_all(action='DESELECT'); "
+                        f"bpy.ops.mesh.select_non_manifold(); "
+                        f"bpy.ops.object.editmode_toggle()"
+                    ),
+                    auto_fixable=False,  # selection only, actual fix is manual
+                )
+            )
 
         if isolated_vert_count > 0:
-            issues.append(QAIssue(
-                category="topology",
-                severity="warning",
-                object_name=name,
-                description=(
-                    f"{isolated_vert_count} isolated vertex/vertices on '{name}' with no edges. "
-                    "Clean up loose geometry."
-                ),
-                fix_command=(
-                    f"import bpy; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.ops.object.editmode_toggle(); "
-                    f"bpy.ops.mesh.select_all(action='DESELECT'); "
-                    f"bpy.ops.mesh.select_loose(); "
-                    f"bpy.ops.mesh.delete(type='VERT'); "
-                    f"bpy.ops.object.editmode_toggle()"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="topology",
+                    severity="warning",
+                    object_name=name,
+                    description=(
+                        f"{isolated_vert_count} isolated vertex/vertices on '{name}' with no edges. "
+                        "Clean up loose geometry."
+                    ),
+                    fix_command=(
+                        f"import bpy; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.ops.object.editmode_toggle(); "
+                        f"bpy.ops.mesh.select_all(action='DESELECT'); "
+                        f"bpy.ops.mesh.select_loose(); "
+                        f"bpy.ops.mesh.delete(type='VERT'); "
+                        f"bpy.ops.object.editmode_toggle()"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
     return issues
 
@@ -561,48 +596,52 @@ def _check_polycount(context, profile: dict) -> List[QAIssue]:
     for obj in bpy.data.objects:
         if obj.type != "MESH":
             continue
-        tri_count = sum(
-            len(poly.vertices) - 2 for poly in obj.data.polygons
-        )
+        tri_count = sum(len(poly.vertices) - 2 for poly in obj.data.polygons)
         total_tris += tri_count
 
         if tri_count > max_tris * 0.5:  # warn if single object is >50% of budget
-            issues.append(QAIssue(
+            issues.append(
+                QAIssue(
+                    category="polycount",
+                    severity="warning",
+                    object_name=obj.name,
+                    description=(
+                        f"Object '{obj.name}' has {tri_count:,} tris "
+                        f"({tri_count / max_tris * 100:.0f}% of {profile['notes']} budget of {max_tris:,})."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
+
+    if total_tris > max_tris:
+        issues.append(
+            QAIssue(
                 category="polycount",
-                severity="warning",
-                object_name=obj.name,
+                severity="error",
+                object_name="SCENE",
                 description=(
-                    f"Object '{obj.name}' has {tri_count:,} tris "
-                    f"({tri_count / max_tris * 100:.0f}% of {profile['notes']} budget of {max_tris:,})."
+                    f"Scene total: {total_tris:,} tris — EXCEEDS {profile['notes']} budget of {max_tris:,} tris "
+                    f"(over by {total_tris - max_tris:,})."
                 ),
                 fix_command="",
                 auto_fixable=False,
-            ))
-
-    if total_tris > max_tris:
-        issues.append(QAIssue(
-            category="polycount",
-            severity="error",
-            object_name="SCENE",
-            description=(
-                f"Scene total: {total_tris:,} tris — EXCEEDS {profile['notes']} budget of {max_tris:,} tris "
-                f"(over by {total_tris - max_tris:,})."
-            ),
-            fix_command="",
-            auto_fixable=False,
-        ))
+            )
+        )
     elif total_tris > max_tris * 0.85:
-        issues.append(QAIssue(
-            category="polycount",
-            severity="warning",
-            object_name="SCENE",
-            description=(
-                f"Scene total: {total_tris:,} tris — within {100 - (total_tris / max_tris * 100):.0f}% "
-                f"of {profile['notes']} budget of {max_tris:,}. Close to limit."
-            ),
-            fix_command="",
-            auto_fixable=False,
-        ))
+        issues.append(
+            QAIssue(
+                category="polycount",
+                severity="warning",
+                object_name="SCENE",
+                description=(
+                    f"Scene total: {total_tris:,} tris — within {100 - (total_tris / max_tris * 100):.0f}% "
+                    f"of {profile['notes']} budget of {max_tris:,}. Close to limit."
+                ),
+                fix_command="",
+                auto_fixable=False,
+            )
+        )
 
     return issues
 
@@ -624,19 +663,23 @@ def _check_materials(context) -> List[QAIssue]:
         name = obj.name
 
         # No material assigned
-        if len(obj.material_slots) == 0 or all(s.material is None for s in obj.material_slots):
-            issues.append(QAIssue(
-                category="materials",
-                severity="error",
-                object_name=name,
-                description=f"Object '{name}' has no material. Assign a material before export.",
-                fix_command=(
-                    f"import bpy; obj = bpy.data.objects['{name}']; "
-                    f"mat = bpy.data.materials.new(name='{name}_mat'); "
-                    f"mat.use_nodes = True; obj.data.materials.append(mat)"
-                ),
-                auto_fixable=True,
-            ))
+        if len(obj.material_slots) == 0 or all(
+            s.material is None for s in obj.material_slots
+        ):
+            issues.append(
+                QAIssue(
+                    category="materials",
+                    severity="error",
+                    object_name=name,
+                    description=f"Object '{name}' has no material. Assign a material before export.",
+                    fix_command=(
+                        f"import bpy; obj = bpy.data.objects['{name}']; "
+                        f"mat = bpy.data.materials.new(name='{name}_mat'); "
+                        f"mat.use_nodes = True; obj.data.materials.append(mat)"
+                    ),
+                    auto_fixable=True,
+                )
+            )
             continue
 
         for slot in obj.material_slots:
@@ -657,56 +700,62 @@ def _check_materials(context) -> List[QAIssue]:
                 if metallic_input and not metallic_input.is_linked:
                     val = metallic_input.default_value
                     if not 0.0 <= val <= 1.0:
-                        issues.append(QAIssue(
-                            category="materials",
-                            severity="error",
-                            object_name=name,
-                            description=(
-                                f"Material '{mat.name}' on '{name}': Metallic value {val:.3f} "
-                                "is outside [0, 1] range. Physically impossible."
-                            ),
-                            fix_command=(
-                                f"import bpy; "
-                                f"mat = bpy.data.materials['{mat.name}']; "
-                                f"node = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); "
-                                f"node.inputs['Metallic'].default_value = max(0.0, min(1.0, node.inputs['Metallic'].default_value))"
-                            ),
-                            auto_fixable=True,
-                        ))
+                        issues.append(
+                            QAIssue(
+                                category="materials",
+                                severity="error",
+                                object_name=name,
+                                description=(
+                                    f"Material '{mat.name}' on '{name}': Metallic value {val:.3f} "
+                                    "is outside [0, 1] range. Physically impossible."
+                                ),
+                                fix_command=(
+                                    f"import bpy; "
+                                    f"mat = bpy.data.materials['{mat.name}']; "
+                                    f"node = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); "
+                                    f"node.inputs['Metallic'].default_value = max(0.0, min(1.0, node.inputs['Metallic'].default_value))"
+                                ),
+                                auto_fixable=True,
+                            )
+                        )
 
                 # Roughness range check [0, 1]
                 roughness_input = node.inputs.get("Roughness")
                 if roughness_input and not roughness_input.is_linked:
                     val = roughness_input.default_value
                     if not 0.0 <= val <= 1.0:
-                        issues.append(QAIssue(
-                            category="materials",
-                            severity="error",
-                            object_name=name,
-                            description=(
-                                f"Material '{mat.name}' on '{name}': Roughness value {val:.3f} "
-                                "is outside [0, 1] range. Physically impossible."
-                            ),
-                            fix_command="",
-                            auto_fixable=False,
-                        ))
+                        issues.append(
+                            QAIssue(
+                                category="materials",
+                                severity="error",
+                                object_name=name,
+                                description=(
+                                    f"Material '{mat.name}' on '{name}': Roughness value {val:.3f} "
+                                    "is outside [0, 1] range. Physically impossible."
+                                ),
+                                fix_command="",
+                                auto_fixable=False,
+                            )
+                        )
 
                 # Emission strength sanity check
                 emission_strength_input = node.inputs.get("Emission Strength")
                 if emission_strength_input and not emission_strength_input.is_linked:
                     val = emission_strength_input.default_value
                     if val > 1000:
-                        issues.append(QAIssue(
-                            category="materials",
-                            severity="warning",
-                            object_name=name,
-                            description=(
-                                f"Material '{mat.name}' on '{name}': Emission Strength is {val:.0f} — "
-                                "extremely high. Verify this is intentional (not a unit error)."
-                            ),
-                            fix_command="",
-                            auto_fixable=False,
-                        ))
+                        issues.append(
+                            QAIssue(
+                                category="materials",
+                                severity="warning",
+                                object_name=name,
+                                description=(
+                                    f"Material '{mat.name}' on '{name}': Emission Strength is {val:.0f} — "
+                                    "extremely high. Verify this is intentional (not a unit error)."
+                                ),
+                                fix_command="",
+                                auto_fixable=False,
+                            )
+                        )
 
     return issues
 
@@ -731,31 +780,35 @@ def _check_rig_integrity(context) -> List[QAIssue]:
         arm = arm_obj.data
 
         if len(arm.bones) == 0:
-            issues.append(QAIssue(
-                category="rig",
-                severity="error",
-                object_name=name,
-                description=f"Armature '{name}' has no bones.",
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="rig",
+                    severity="error",
+                    object_name=name,
+                    description=f"Armature '{name}' has no bones.",
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
             continue
 
         # Check for zero-length bones
         for bone in arm.bones:
             length = bone.length
             if length < 1e-5:
-                issues.append(QAIssue(
-                    category="rig",
-                    severity="error",
-                    object_name=name,
-                    description=(
-                        f"Bone '{bone.name}' in armature '{name}' has near-zero length ({length:.6f}). "
-                        "Degenerate bones cause skinning failures."
-                    ),
-                    fix_command="",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    QAIssue(
+                        category="rig",
+                        severity="error",
+                        object_name=name,
+                        description=(
+                            f"Bone '{bone.name}' in armature '{name}' has near-zero length ({length:.6f}). "
+                            "Degenerate bones cause skinning failures."
+                        ),
+                        fix_command="",
+                        auto_fixable=False,
+                    )
+                )
 
     # Find skinned meshes
     for obj in bpy.data.objects:
@@ -772,58 +825,64 @@ def _check_rig_integrity(context) -> List[QAIssue]:
 
         arm_obj = arm_mod.object
         if arm_obj is None:
-            issues.append(QAIssue(
-                category="rig",
-                severity="error",
-                object_name=name,
-                description=f"Mesh '{name}' has an Armature modifier with no armature assigned.",
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="rig",
+                    severity="error",
+                    object_name=name,
+                    description=f"Mesh '{name}' has an Armature modifier with no armature assigned.",
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
             continue
 
         # Check vertex groups exist
         if len(obj.vertex_groups) == 0:
-            issues.append(QAIssue(
-                category="rig",
-                severity="error",
-                object_name=name,
-                description=(
-                    f"Mesh '{name}' has an Armature modifier but zero vertex groups. "
-                    "Skinning will have no effect."
-                ),
-                fix_command=(
-                    f"import bpy; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"bpy.data.objects['{name}'].select_set(True); "
-                    f"arm = bpy.data.objects['{arm_obj.name}']; "
-                    f"arm.select_set(True); "
-                    f"bpy.ops.object.parent_set(type='ARMATURE_AUTO')"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="rig",
+                    severity="error",
+                    object_name=name,
+                    description=(
+                        f"Mesh '{name}' has an Armature modifier but zero vertex groups. "
+                        "Skinning will have no effect."
+                    ),
+                    fix_command=(
+                        f"import bpy; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"bpy.data.objects['{name}'].select_set(True); "
+                        f"arm = bpy.data.objects['{arm_obj.name}']; "
+                        f"arm.select_set(True); "
+                        f"bpy.ops.object.parent_set(type='ARMATURE_AUTO')"
+                    ),
+                    auto_fixable=True,
+                )
+            )
             continue
 
         # Check vertex groups have matching bones
         bone_names = {b.name for b in arm_obj.data.bones}
         for vg in obj.vertex_groups:
             if vg.name not in bone_names:
-                issues.append(QAIssue(
-                    category="rig",
-                    severity="warning",
-                    object_name=name,
-                    description=(
-                        f"Vertex group '{vg.name}' on '{name}' has no matching bone in '{arm_obj.name}'. "
-                        "Orphaned weight group — likely a renamed/deleted bone."
-                    ),
-                    fix_command=(
-                        f"import bpy; "
-                        f"obj = bpy.data.objects['{name}']; "
-                        f"vg = obj.vertex_groups.get('{vg.name}'); "
-                        f"if vg: obj.vertex_groups.remove(vg)"
-                    ),
-                    auto_fixable=True,
-                ))
+                issues.append(
+                    QAIssue(
+                        category="rig",
+                        severity="warning",
+                        object_name=name,
+                        description=(
+                            f"Vertex group '{vg.name}' on '{name}' has no matching bone in '{arm_obj.name}'. "
+                            "Orphaned weight group — likely a renamed/deleted bone."
+                        ),
+                        fix_command=(
+                            f"import bpy; "
+                            f"obj = bpy.data.objects['{name}']; "
+                            f"vg = obj.vertex_groups.get('{vg.name}'); "
+                            f"if vg: obj.vertex_groups.remove(vg)"
+                        ),
+                        auto_fixable=True,
+                    )
+                )
 
     return issues
 
@@ -842,51 +901,57 @@ def _check_scene_organization(context) -> List[QAIssue]:
     # Orphaned meshes
     orphaned_meshes = [m for m in bpy.data.meshes if m.users == 0]
     if orphaned_meshes:
-        issues.append(QAIssue(
-            category="organization",
-            severity="info",
-            object_name="DATA",
-            description=(
-                f"{len(orphaned_meshes)} orphaned mesh data-block(s) with zero users: "
-                f"{[m.name for m in orphaned_meshes[:5]]}... "
-                "Run 'Purge All' to clean up."
-            ),
-            fix_command="import bpy; bpy.ops.outliner.orphans_purge(do_recursive=True)",
-            auto_fixable=True,
-        ))
+        issues.append(
+            QAIssue(
+                category="organization",
+                severity="info",
+                object_name="DATA",
+                description=(
+                    f"{len(orphaned_meshes)} orphaned mesh data-block(s) with zero users: "
+                    f"{[m.name for m in orphaned_meshes[:5]]}... "
+                    "Run 'Purge All' to clean up."
+                ),
+                fix_command="import bpy; bpy.ops.outliner.orphans_purge(do_recursive=True)",
+                auto_fixable=True,
+            )
+        )
 
     # Orphaned materials
     orphaned_mats = [m for m in bpy.data.materials if m.users == 0]
     if orphaned_mats:
-        issues.append(QAIssue(
-            category="organization",
-            severity="info",
-            object_name="DATA",
-            description=(
-                f"{len(orphaned_mats)} orphaned material(s) with zero users. Run 'Purge All'."
-            ),
-            fix_command="import bpy; bpy.ops.outliner.orphans_purge(do_recursive=True)",
-            auto_fixable=True,
-        ))
+        issues.append(
+            QAIssue(
+                category="organization",
+                severity="info",
+                object_name="DATA",
+                description=(
+                    f"{len(orphaned_mats)} orphaned material(s) with zero users. Run 'Purge All'."
+                ),
+                fix_command="import bpy; bpy.ops.outliner.orphans_purge(do_recursive=True)",
+                auto_fixable=True,
+            )
+        )
 
     # Missing image textures
     for img in bpy.data.images:
         if img.source == "FILE" and img.filepath:
             abs_path = bpy.path.abspath(img.filepath)
             if not os.path.exists(abs_path):
-                issues.append(QAIssue(
-                    category="organization",
-                    severity="error",
-                    object_name=img.name,
-                    description=(
-                        f"Image texture '{img.name}' references a missing file: '{abs_path}'. "
-                        "Fix the path or pack the image."
-                    ),
-                    fix_command=(
-                        f"import bpy; bpy.data.images['{img.name}'].pack()"
-                    ),
-                    auto_fixable=False,  # packing won't help if file is missing
-                ))
+                issues.append(
+                    QAIssue(
+                        category="organization",
+                        severity="error",
+                        object_name=img.name,
+                        description=(
+                            f"Image texture '{img.name}' references a missing file: '{abs_path}'. "
+                            "Fix the path or pack the image."
+                        ),
+                        fix_command=(
+                            f"import bpy; bpy.data.images['{img.name}'].pack()"
+                        ),
+                        auto_fixable=False,  # packing won't help if file is missing
+                    )
+                )
 
     return issues
 
@@ -911,31 +976,35 @@ def _check_export_readiness(context, profile_name: str) -> List[QAIssue]:
         if obj.data.shape_keys:
             for kb in obj.data.shape_keys.key_blocks:
                 if " " in kb.name or not re.match(r"^[A-Za-z0-9_]+$", kb.name):
-                    issues.append(QAIssue(
-                        category="export",
-                        severity="warning",
-                        object_name=name,
-                        description=(
-                            f"Shape key '{kb.name}' on '{name}' has spaces or special characters. "
-                            "FBX export may mangle the name. Use underscores only."
-                        ),
-                        fix_command="",
-                        auto_fixable=False,
-                    ))
+                    issues.append(
+                        QAIssue(
+                            category="export",
+                            severity="warning",
+                            object_name=name,
+                            description=(
+                                f"Shape key '{kb.name}' on '{name}' has spaces or special characters. "
+                                "FBX export may mangle the name. Use underscores only."
+                            ),
+                            fix_command="",
+                            auto_fixable=False,
+                        )
+                    )
 
         # Multi-user mesh data (GLTF issue)
         if obj.data.users > 1:
-            issues.append(QAIssue(
-                category="export",
-                severity="info",
-                object_name=name,
-                description=(
-                    f"Object '{name}' shares mesh data with {obj.data.users - 1} other object(s). "
-                    "GLTF exports this correctly as instancing, but FBX may duplicate geometry."
-                ),
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="export",
+                    severity="info",
+                    object_name=name,
+                    description=(
+                        f"Object '{name}' shares mesh data with {obj.data.users - 1} other object(s). "
+                        "GLTF exports this correctly as instancing, but FBX may duplicate geometry."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
     # Check for modifier stacks that need to be applied before export
     for obj in bpy.data.objects:
@@ -943,26 +1012,29 @@ def _check_export_readiness(context, profile_name: str) -> List[QAIssue]:
             continue
         name = obj.name
         problem_mods = [
-            m.name for m in obj.modifiers
+            m.name
+            for m in obj.modifiers
             if m.type in {"BOOLEAN", "ARRAY", "MIRROR", "SUBSURF", "SOLIDIFY"}
         ]
         if problem_mods:
-            issues.append(QAIssue(
-                category="export",
-                severity="info",
-                object_name=name,
-                description=(
-                    f"Object '{name}' has unapplied modifiers: {problem_mods}. "
-                    "These will be ignored by some exporters unless applied first."
-                ),
-                fix_command=(
-                    f"import bpy; "
-                    f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
-                    f"[bpy.ops.object.modifier_apply(modifier=m.name) "
-                    f"for m in list(bpy.data.objects['{name}'].modifiers)]"
-                ),
-                auto_fixable=True,
-            ))
+            issues.append(
+                QAIssue(
+                    category="export",
+                    severity="info",
+                    object_name=name,
+                    description=(
+                        f"Object '{name}' has unapplied modifiers: {problem_mods}. "
+                        "These will be ignored by some exporters unless applied first."
+                    ),
+                    fix_command=(
+                        f"import bpy; "
+                        f"bpy.context.view_layer.objects.active = bpy.data.objects['{name}']; "
+                        f"[bpy.ops.object.modifier_apply(modifier=m.name) "
+                        f"for m in list(bpy.data.objects['{name}'].modifiers)]"
+                    ),
+                    auto_fixable=True,
+                )
+            )
 
     return issues
 
@@ -982,20 +1054,22 @@ def _check_units(context) -> List[QAIssue]:
     unit_system = scene.unit_settings.system  # 'METRIC', 'IMPERIAL', 'NONE'
 
     if unit_system == "NONE":
-        issues.append(QAIssue(
-            category="units",
-            severity="warning",
-            object_name="SCENE",
-            description=(
-                "Scene unit system is set to 'None'. Set to Metric (1m scale) for production assets."
-            ),
-            fix_command=(
-                "import bpy; "
-                "bpy.context.scene.unit_settings.system = 'METRIC'; "
-                "bpy.context.scene.unit_settings.scale_length = 1.0"
-            ),
-            auto_fixable=True,
-        ))
+        issues.append(
+            QAIssue(
+                category="units",
+                severity="warning",
+                object_name="SCENE",
+                description=(
+                    "Scene unit system is set to 'None'. Set to Metric (1m scale) for production assets."
+                ),
+                fix_command=(
+                    "import bpy; "
+                    "bpy.context.scene.unit_settings.system = 'METRIC'; "
+                    "bpy.context.scene.unit_settings.scale_length = 1.0"
+                ),
+                auto_fixable=True,
+            )
+        )
 
     # Detect likely cm-scale objects in a meter scene
     if unit_system == "METRIC" and abs(unit_scale - 1.0) < 1e-4:
@@ -1012,30 +1086,34 @@ def _check_units(context) -> List[QAIssue]:
                 suspiciously_large.append(obj.name)
 
         if suspiciously_small:
-            issues.append(QAIssue(
-                category="units",
-                severity="warning",
-                object_name="SCENE",
-                description=(
-                    f"Objects {suspiciously_small[:5]} are <1cm in a meter-scale scene. "
-                    "If modeled in centimeters, apply scale ×0.01 or change scene unit scale to 0.01."
-                ),
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="units",
+                    severity="warning",
+                    object_name="SCENE",
+                    description=(
+                        f"Objects {suspiciously_small[:5]} are <1cm in a meter-scale scene. "
+                        "If modeled in centimeters, apply scale ×0.01 or change scene unit scale to 0.01."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
         if suspiciously_large:
-            issues.append(QAIssue(
-                category="units",
-                severity="warning",
-                object_name="SCENE",
-                description=(
-                    f"Objects {suspiciously_large[:5]} exceed 1km in a meter-scale scene. "
-                    "Verify scale is intentional (terrain) or was modeled in wrong units."
-                ),
-                fix_command="",
-                auto_fixable=False,
-            ))
+            issues.append(
+                QAIssue(
+                    category="units",
+                    severity="warning",
+                    object_name="SCENE",
+                    description=(
+                        f"Objects {suspiciously_large[:5]} exceed 1km in a meter-scale scene. "
+                        "Verify scale is intentional (terrain) or was modeled in wrong units."
+                    ),
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            )
 
     return issues
 
@@ -1043,6 +1121,7 @@ def _check_units(context) -> List[QAIssue]:
 # ---------------------------------------------------------------------------
 # Main audit function
 # ---------------------------------------------------------------------------
+
 
 def audit_active_scene(profile_name: str = "game_pc") -> QAReport:
     """
@@ -1066,8 +1145,7 @@ def audit_active_scene(profile_name: str = "game_pc") -> QAReport:
     mesh_objects = [o for o in bpy.data.objects if o.type == "MESH"]
     total_verts = sum(len(o.data.vertices) for o in mesh_objects)
     total_tris = sum(
-        sum(len(p.vertices) - 2 for p in o.data.polygons)
-        for o in mesh_objects
+        sum(len(p.vertices) - 2 for p in o.data.polygons) for o in mesh_objects
     )
     total_materials = len(bpy.data.materials)
     total_images = len(bpy.data.images)
@@ -1083,7 +1161,9 @@ def audit_active_scene(profile_name: str = "game_pc") -> QAReport:
         "profile": profile_name,
     }
 
-    info.append(f"Scene: {len(bpy.data.objects)} objects, {total_tris:,} tris, {total_materials} materials")
+    info.append(
+        f"Scene: {len(bpy.data.objects)} objects, {total_tris:,} tris, {total_materials} materials"
+    )
     info.append(f"Profile: {profile_name} — {profile['notes']}")
 
     # Run all checks
@@ -1130,6 +1210,7 @@ def audit_active_scene(profile_name: str = "game_pc") -> QAReport:
 # ---------------------------------------------------------------------------
 # Auto-fix helpers
 # ---------------------------------------------------------------------------
+
 
 def apply_all_transforms(object_names: Optional[List[str]] = None):
     """
@@ -1197,7 +1278,9 @@ def auto_fix_report(report: QAReport) -> List[str]:
     import bpy
 
     results = []
-    fixable = [i for i in report.issues + report.warnings if i.auto_fixable and i.fix_command]
+    fixable = [
+        i for i in report.issues + report.warnings if i.auto_fixable and i.fix_command
+    ]
     for issue in fixable:
         try:
             obj = bpy.data.objects.get(issue.object_name)
@@ -1215,9 +1298,13 @@ def auto_fix_report(report: QAReport) -> List[str]:
                 bpy.context.view_layer.objects.active = obj
                 obj.select_set(True)
                 if "scale" in issue.description.lower():
-                    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+                    bpy.ops.object.transform_apply(
+                        location=False, rotation=False, scale=True
+                    )
                 elif "rotation" in issue.description.lower():
-                    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+                    bpy.ops.object.transform_apply(
+                        location=False, rotation=True, scale=False
+                    )
                 elif "origin" in issue.description.lower():
                     bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="MEDIAN")
 
@@ -1230,7 +1317,9 @@ def auto_fix_report(report: QAReport) -> List[str]:
                 bpy.ops.object.editmode_toggle()
 
             else:
-                results.append(f"SKIP: [{issue.object_name}] no direct fix for category '{category}'")
+                results.append(
+                    f"SKIP: [{issue.object_name}] no direct fix for category '{category}'"
+                )
                 continue
 
             results.append(f"FIXED: [{issue.object_name}] {issue.description[:60]}")
@@ -1277,7 +1366,10 @@ QA_VOICE_TEMPLATES = [
     # Materials
     ("materials", "check all materials are assigned"),
     ("materials", "find objects with no material"),
-    ("materials", "audit the PBR values — check for out of range roughness or metallic"),
+    (
+        "materials",
+        "audit the PBR values — check for out of range roughness or metallic",
+    ),
     ("materials", "find any physically impossible material values"),
     ("materials", "create a default material for anything missing one"),
     # Rig
@@ -1408,7 +1500,9 @@ def generate_training_pairs_from_qa(
 
     # Variations to make voice commands more natural
     prefixes = [
-        "", "", "",  # no prefix (most common)
+        "",
+        "",
+        "",  # no prefix (most common)
         "can you ",
         "please ",
         "hey nalana, ",
@@ -1430,7 +1524,12 @@ def generate_training_pairs_from_qa(
         code = QA_CODE_TEMPLATES.get(category, QA_CODE_TEMPLATES["full_qa"])
 
         # Substitute profile name in code where relevant
-        if "game_pc" in code and category in {"polycount", "topology", "export", "full_qa"}:
+        if "game_pc" in code and category in {
+            "polycount",
+            "topology",
+            "export",
+            "full_qa",
+        }:
             code = code.replace("game_pc", profile)
 
         pair = {
@@ -1460,7 +1559,7 @@ def generate_training_pairs_from_qa(
 # Headless Blender runner
 # ---------------------------------------------------------------------------
 
-BLENDER_QA_HARNESS = '''
+BLENDER_QA_HARNESS = """
 import bpy
 import sys
 import json
@@ -1472,7 +1571,7 @@ import qa_agent
 
 report = qa_agent.audit_active_scene(profile_name="{profile}")
 print("QA_RESULT:" + json.dumps(report.to_dict()))
-'''
+"""
 
 
 def run_headless(
@@ -1519,7 +1618,7 @@ def run_headless(
         # Extract JSON result from output
         for line in output.splitlines():
             if line.startswith("QA_RESULT:"):
-                data = json.loads(line[len("QA_RESULT:"):])
+                data = json.loads(line[len("QA_RESULT:") :])
                 report = QAReport(
                     passed=data["passed"],
                     score=data["score"],
@@ -1535,14 +1634,16 @@ def run_headless(
         return QAReport(
             passed=False,
             score=0.0,
-            issues=[QAIssue(
-                category="execution",
-                severity="error",
-                object_name="BLENDER",
-                description=f"Headless Blender failed. stderr: {result.stderr[:500]}",
-                fix_command="",
-                auto_fixable=False,
-            )],
+            issues=[
+                QAIssue(
+                    category="execution",
+                    severity="error",
+                    object_name="BLENDER",
+                    description=f"Headless Blender failed. stderr: {result.stderr[:500]}",
+                    fix_command="",
+                    auto_fixable=False,
+                )
+            ],
             warnings=[],
             info=[],
             stats={},
@@ -1555,6 +1656,7 @@ def run_headless(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1576,10 +1678,18 @@ Examples:
         help="Platform quality profile",
     )
     parser.add_argument("--output", help="Output report JSON path")
-    parser.add_argument("--auto-fix", action="store_true", help="Run auto-fixes before reporting")
-    parser.add_argument("--blender-path", default="blender", help="Path to Blender executable")
-    parser.add_argument("--generate-pairs", action="store_true", help="Generate QA training pairs")
-    parser.add_argument("--n-pairs", type=int, default=300, help="Number of training pairs to generate")
+    parser.add_argument(
+        "--auto-fix", action="store_true", help="Run auto-fixes before reporting"
+    )
+    parser.add_argument(
+        "--blender-path", default="blender", help="Path to Blender executable"
+    )
+    parser.add_argument(
+        "--generate-pairs", action="store_true", help="Generate QA training pairs"
+    )
+    parser.add_argument(
+        "--n-pairs", type=int, default=300, help="Number of training pairs to generate"
+    )
     parser.add_argument(
         "--pairs-output-dir",
         default=str(Path(__file__).parents[1] / "data" / "qa"),
@@ -1617,7 +1727,9 @@ Examples:
     if report.issues:
         print(f"\nErrors ({len(report.issues)}):")
         for issue in report.issues:
-            print(f"  [{issue.category.upper()}] {issue.object_name}: {issue.description}")
+            print(
+                f"  [{issue.category.upper()}] {issue.object_name}: {issue.description}"
+            )
 
     if report.warnings:
         print(f"\nWarnings ({len(report.warnings)}):")
@@ -1625,7 +1737,7 @@ Examples:
             print(f"  [{w.category.upper()}] {w.object_name}: {w.description}")
 
     if report.info:
-        print(f"\nInfo:")
+        print("\nInfo:")
         for i in report.info:
             print(f"  {i}")
 

@@ -27,7 +27,6 @@ import asyncio
 import json
 import logging
 import random
-import sys
 from pathlib import Path
 from textwrap import dedent
 
@@ -35,6 +34,7 @@ from tqdm import tqdm
 
 try:
     import aiohttp
+
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -1273,14 +1273,17 @@ async def scrape_dream3d_examples(output_dir: Path) -> list[str]:
                         continue
                     text = await resp.text()
                     # Extract potential 3D prompt text
-                    clean = re.sub(r'<[^>]+>', ' ', text)
+                    clean = re.sub(r"<[^>]+>", " ", text)
                     # Look for prompt-like patterns (short descriptive phrases)
                     prompts = re.findall(
-                        r'(?:create|make|generate|build|design|model)\s+[a-zA-Z\s,]+(?:3d|scene|object|model)?',
-                        clean, re.IGNORECASE
+                        r"(?:create|make|generate|build|design|model)\s+[a-zA-Z\s,]+(?:3d|scene|object|model)?",
+                        clean,
+                        re.IGNORECASE,
                     )
                     discovered_prompts.extend(p.strip() for p in prompts[:10])
-                    log.info("Scraped %s: found %d potential prompts", url, len(prompts))
+                    log.info(
+                        "Scraped %s: found %d potential prompts", url, len(prompts)
+                    )
                 await asyncio.sleep(1.0)
             except Exception as e:
                 log.debug("Could not scrape %s: %s", url, e)
@@ -1288,12 +1291,15 @@ async def scrape_dream3d_examples(output_dir: Path) -> list[str]:
     if discovered_prompts:
         prompts_file = output_dir / "discovered_prompts.txt"
         prompts_file.write_text("\n".join(set(discovered_prompts)))
-        log.info("Saved %d discovered prompts to %s", len(discovered_prompts), prompts_file)
+        log.info(
+            "Saved %d discovered prompts to %s", len(discovered_prompts), prompts_file
+        )
 
     return discovered_prompts
 
 
 # ─── Main generator ────────────────────────────────────────────────────────────
+
 
 class Dream3DDPOGenerator:
     def __init__(self, output_dir: Path):
@@ -1312,7 +1318,10 @@ class Dream3DDPOGenerator:
         pairs_per_template = max(1, target_count // len(DPO_TEMPLATES))
         remainder = target_count - pairs_per_template * len(DPO_TEMPLATES)
 
-        with open(output_file, "w") as f_out, tqdm(total=target_count, desc="DPO pairs") as pbar:
+        with (
+            open(output_file, "w") as f_out,
+            tqdm(total=target_count, desc="DPO pairs") as pbar,
+        ):
             for i, template in enumerate(DPO_TEMPLATES):
                 count = pairs_per_template + (1 if i < remainder else 0)
                 for j in range(count):
@@ -1359,31 +1368,39 @@ class Dream3DDPOGenerator:
     def preview(self, n: int = 3) -> None:
         """Print n example DPO pairs."""
         for template in DPO_TEMPLATES[:n]:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"PROMPT: {template['prompt']}")
             print(f"THEME: {template['theme']}")
-            print(f"\nCHOSEN reasoning:")
+            print("\nCHOSEN reasoning:")
             print(f"  {template['chosen']['reasoning'][:300]}...")
-            print(f"\nREJECTED reasoning:")
+            print("\nREJECTED reasoning:")
             print(f"  {template['rejected']['reasoning'][:300]}...")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate Dream3D-style DPO preference pairs for Nalana",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--count", type=int, default=200, help="Number of DPO pairs to generate")
     parser.add_argument(
-        "--output", type=Path,
+        "--count", type=int, default=200, help="Number of DPO pairs to generate"
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
         default=BASE_DIR / "data" / "integrations" / "dream3d",
         help="Output directory",
     )
-    parser.add_argument("--scrape", action="store_true", help="Attempt to scrape Dream3D gallery")
-    parser.add_argument("--preview", type=int, metavar="N", help="Preview N example pairs and exit")
+    parser.add_argument(
+        "--scrape", action="store_true", help="Attempt to scrape Dream3D gallery"
+    )
+    parser.add_argument(
+        "--preview", type=int, metavar="N", help="Preview N example pairs and exit"
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -1397,11 +1414,11 @@ def main() -> None:
         return
 
     total = generator.generate(args.count, scrape=args.scrape)
-    print(f"\nDream3D DPO generation complete:")
+    print("\nDream3D DPO generation complete:")
     print(f"  {total} preference pairs → {args.output}/dpo_pairs.jsonl")
     print(f"  {len(DPO_TEMPLATES)} base templates × variations")
     print(f"  Themes: {', '.join(set(t['theme'] for t in DPO_TEMPLATES))}")
-    print(f"  Each pair: expert chosen + naive rejected implementation")
+    print("  Each pair: expert chosen + naive rejected implementation")
 
 
 if __name__ == "__main__":

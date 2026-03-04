@@ -23,28 +23,72 @@ import argparse
 import hashlib
 import json
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
-PROCESSED_DIR  = Path(__file__).parents[1] / "data" / "processed"
-VALIDATED_DIR  = Path(__file__).parents[1] / "data" / "validated"
-MASTER_JSONL   = PROCESSED_DIR / "dataset.jsonl"
+PROCESSED_DIR = Path(__file__).parents[1] / "data" / "processed"
+VALIDATED_DIR = Path(__file__).parents[1] / "data" / "validated"
+MASTER_JSONL = PROCESSED_DIR / "dataset.jsonl"
 
 # ─── Known valid bpy.ops prefixes + common ops ────────────────────────────────
 
 VALID_OP_PREFIXES = {
-    "mesh", "object", "transform", "view3d", "sculpt", "paint",
-    "armature", "pose", "curve", "surface", "metaball", "font",
-    "lattice", "empty", "gpencil", "node", "material", "texture",
-    "uv", "render", "scene", "world", "action", "nla", "sequencer",
-    "clip", "image", "graph", "anim", "rigidbody", "fluid", "cloth",
-    "particle", "constraint", "physics", "geometry", "preferences",
-    "screen", "workspace", "outliner", "wm", "file", "export_scene",
-    "import_scene", "import_mesh", "export_mesh", "cycles",
+    "mesh",
+    "object",
+    "transform",
+    "view3d",
+    "sculpt",
+    "paint",
+    "armature",
+    "pose",
+    "curve",
+    "surface",
+    "metaball",
+    "font",
+    "lattice",
+    "empty",
+    "gpencil",
+    "node",
+    "material",
+    "texture",
+    "uv",
+    "render",
+    "scene",
+    "world",
+    "action",
+    "nla",
+    "sequencer",
+    "clip",
+    "image",
+    "graph",
+    "anim",
+    "rigidbody",
+    "fluid",
+    "cloth",
+    "particle",
+    "constraint",
+    "physics",
+    "geometry",
+    "preferences",
+    "screen",
+    "workspace",
+    "outliner",
+    "wm",
+    "file",
+    "export_scene",
+    "import_scene",
+    "import_mesh",
+    "export_mesh",
+    "cycles",
 }
 
 KNOWN_BAD_OPS = {
-    "unknown", "todo", "placeholder", "none", "null", "undefined",
+    "unknown",
+    "todo",
+    "placeholder",
+    "none",
+    "null",
+    "undefined",
 }
 
 # Menu-path patterns that indicate a bad voice_command
@@ -91,18 +135,42 @@ def validate_pair(pair: dict) -> tuple[float, list[str]]:
             issues.append(f"unknown_op_prefix:{prefix}")
     elif op_name not in ("MULTI_STEP_PLAN", "UNKNOWN"):
         # Universal DSL ops are OK
-        if not any(op_name.startswith(p.upper() + "_") or op_name == p.upper()
-                   for p in ["ADD", "EXTRUDE", "BEVEL", "SUBDIVIDE", "INSET", "LOOP",
-                              "KNIFE", "BRIDGE", "FILL", "MERGE", "DELETE", "SCALE",
-                              "ROTATE", "TRANSLATE", "SHADE", "ENTER", "APPLY",
-                              "DUPLICATE", "JOIN", "UNWRAP", "RENDER", "VOXEL"]):
+        if not any(
+            op_name.startswith(p.upper() + "_") or op_name == p.upper()
+            for p in [
+                "ADD",
+                "EXTRUDE",
+                "BEVEL",
+                "SUBDIVIDE",
+                "INSET",
+                "LOOP",
+                "KNIFE",
+                "BRIDGE",
+                "FILL",
+                "MERGE",
+                "DELETE",
+                "SCALE",
+                "ROTATE",
+                "TRANSLATE",
+                "SHADE",
+                "ENTER",
+                "APPLY",
+                "DUPLICATE",
+                "JOIN",
+                "UNWRAP",
+                "RENDER",
+                "VOXEL",
+            ]
+        ):
             score -= 0.1
             issues.append(f"unrecognized_op:{op_name}")
 
     # ── Blender Python ────────────────────────────────────────────────────────
     bp = pair.get("blender_python", "")
     if bp and not (bp.startswith("bpy.") or bp.startswith("#") or "\n" in bp):
-        if not any(kw in bp for kw in ["bpy.", "import ", "cmds.", "c4d.", "hou.", "rs."]):
+        if not any(
+            kw in bp for kw in ["bpy.", "import ", "cmds.", "c4d.", "hou.", "rs."]
+        ):
             score -= 0.1
             issues.append("python_not_api_call")
 
@@ -124,8 +192,19 @@ def validate_pair(pair: dict) -> tuple[float, list[str]]:
             break
 
     # Bad voice commands that are just op names
-    if vc in ("extrude", "bevel", "subdivide", "translate", "rotate", "scale",
-              "duplicate", "delete", "join", "merge", "fill"):
+    if vc in (
+        "extrude",
+        "bevel",
+        "subdivide",
+        "translate",
+        "rotate",
+        "scale",
+        "duplicate",
+        "delete",
+        "join",
+        "merge",
+        "fill",
+    ):
         score -= 0.15
         issues.append("voice_is_just_op_name")
 
@@ -233,30 +312,26 @@ def main():
         "total_input": len(all_pairs),
         "kept": len(kept),
         "rejected": len(rejected),
-        "keep_rate": f"{len(kept)/max(len(all_pairs),1)*100:.1f}%",
+        "keep_rate": f"{len(kept) / max(len(all_pairs), 1) * 100:.1f}%",
         "score_distribution": {str(k): v for k, v in sorted(score_dist.items())},
         "top_issues": dict(issue_dist.most_common(15)),
-        "unique_ops": len(set(
-            p.get("blender_op", {}).get("op", "")
-            for p in kept
-        )),
-        "unique_sources": len(set(
-            p.get("video_id") or p.get("uid") or ""
-            for p in kept
-        )),
+        "unique_ops": len(set(p.get("blender_op", {}).get("op", "") for p in kept)),
+        "unique_sources": len(
+            set(p.get("video_id") or p.get("uid") or "" for p in kept)
+        ),
     }
     (VALIDATED_DIR / "stats.json").write_text(json.dumps(stats, indent=2))
 
-    print(f"\n{'═'*50}")
+    print(f"\n{'═' * 50}")
     print(f"  INPUT:    {len(all_pairs):,} pairs")
     print(f"  KEPT:     {len(kept):,} ({stats['keep_rate']})")
     print(f"  REJECTED: {len(rejected):,}")
     print(f"  UNIQUE OPS: {stats['unique_ops']}")
-    print(f"\n  Top issues:")
+    print("\n  Top issues:")
     for issue, count in issue_dist.most_common(8):
         print(f"    {issue:<35} {count:>6}")
     print(f"\n  Output: {out_path}")
-    print(f"  Next: python validate_blender.py && python train_prep.py")
+    print("  Next: python validate_blender.py && python train_prep.py")
 
 
 if __name__ == "__main__":

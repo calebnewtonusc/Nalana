@@ -48,8 +48,7 @@ CHUNKS_PER_BATCH = 6
 
 def build_user_prompt(chunks: list[dict], video_url: str) -> str:
     segments_text = "\n\n".join(
-        f"[{c['start']:.0f}s - {c['end']:.0f}s]\n{c['text']}"
-        for c in chunks
+        f"[{c['start']:.0f}s - {c['end']:.0f}s]\n{c['text']}" for c in chunks
     )
     return f"""Tutorial URL: {video_url}
 
@@ -117,7 +116,9 @@ def synthesize_video(video_id: str, force: bool = False) -> Path | None:
     data = json.loads(raw_path.read_text())
     chunks = data["chunks"]
     url = data["url"]
-    print(f"  [PROCESS] {video_id} ({len(chunks)} chunks, {len(chunks)//CHUNKS_PER_BATCH + 1} batches)")
+    print(
+        f"  [PROCESS] {video_id} ({len(chunks)} chunks, {len(chunks) // CHUNKS_PER_BATCH + 1} batches)"
+    )
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -130,7 +131,9 @@ def synthesize_video(video_id: str, force: bool = False) -> Path | None:
         batch = chunks[i : i + CHUNKS_PER_BATCH]
         batch_num = i // CHUNKS_PER_BATCH + 1
         total_batches = (len(chunks) - 1) // CHUNKS_PER_BATCH + 1
-        print(f"    batch {batch_num}/{total_batches} ({batch[0]['start']:.0f}s - {batch[-1]['end']:.0f}s)")
+        print(
+            f"    batch {batch_num}/{total_batches} ({batch[0]['start']:.0f}s - {batch[-1]['end']:.0f}s)"
+        )
 
         pairs = extract_pairs_from_batch(client, batch, url, video_id)
         all_pairs.extend(pairs)
@@ -161,10 +164,18 @@ def merge_all_jsonl(out_path: Path) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Synthesize Blender training pairs from transcripts")
+    parser = argparse.ArgumentParser(
+        description="Synthesize Blender training pairs from transcripts"
+    )
     parser.add_argument("--video-id", help="Process a single video ID")
-    parser.add_argument("--force", action="store_true", help="Re-process even if cached")
-    parser.add_argument("--merge", action="store_true", help="Merge all JSONL into dataset.jsonl after processing")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-process even if cached"
+    )
+    parser.add_argument(
+        "--merge",
+        action="store_true",
+        help="Merge all JSONL into dataset.jsonl after processing",
+    )
     args = parser.parse_args()
 
     if args.video_id:

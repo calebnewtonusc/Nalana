@@ -26,14 +26,13 @@ import asyncio
 import json
 import logging
 import random
-import sys
 from pathlib import Path
-from typing import Any
 
 from tqdm import tqdm
 
 try:
     import aiohttp
+
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -453,9 +452,34 @@ SIMULATION_VOICE_TEMPLATES = [
     "Show me where stress concentrations form in this design",
 ]
 
-PARTS = ["bracket", "beam", "plate", "housing", "frame", "column", "panel", "shaft", "hub", "flange"]
-MATERIALS = ["aluminum 6061", "steel 4340", "titanium Ti-6Al-4V", "ABS plastic", "PEEK", "carbon fiber"]
-LOADS = ["50kg point load", "10kN tensile force", "bending moment", "cyclic fatigue loading", "compressive load", "torsional load"]
+PARTS = [
+    "bracket",
+    "beam",
+    "plate",
+    "housing",
+    "frame",
+    "column",
+    "panel",
+    "shaft",
+    "hub",
+    "flange",
+]
+MATERIALS = [
+    "aluminum 6061",
+    "steel 4340",
+    "titanium Ti-6Al-4V",
+    "ABS plastic",
+    "PEEK",
+    "carbon fiber",
+]
+LOADS = [
+    "50kg point load",
+    "10kN tensile force",
+    "bending moment",
+    "cyclic fatigue loading",
+    "compressive load",
+    "torsional load",
+]
 LOAD_DESCS = [
     "50kg point load at the tip",
     "10kN tensile force along the axis",
@@ -466,8 +490,12 @@ LOAD_DESCS = [
     "combined bending and torsion",
 ]
 USE_CASES = [
-    "automotive suspension", "bicycle frame", "aerospace bracket",
-    "consumer electronics housing", "medical implant", "drone frame",
+    "automotive suspension",
+    "bicycle frame",
+    "aerospace bracket",
+    "consumer electronics housing",
+    "medical implant",
+    "drone frame",
 ]
 
 
@@ -484,7 +512,9 @@ def generate_structural_pair(principle_key: str, principle: dict, variant: int) 
         part=part,
         material=material,
         load_description=load_desc,
-        load=load_desc.split()[0] + " " + load_desc.split()[1] if len(load_desc.split()) > 1 else load_desc,
+        load=load_desc.split()[0] + " " + load_desc.split()[1]
+        if len(load_desc.split()) > 1
+        else load_desc,
         use_case=use_case,
     )
 
@@ -511,7 +541,9 @@ def generate_structural_pair(principle_key: str, principle: dict, variant: int) 
     }
 
 
-def generate_optimization_pair(principle_key: str, principle: dict, variant: int) -> dict:
+def generate_optimization_pair(
+    principle_key: str, principle: dict, variant: int
+) -> dict:
     """Generate a topology optimization reasoning pair."""
     random.seed(hash((principle_key, "opt", variant)))
     part = random.choice(PARTS)
@@ -546,7 +578,9 @@ def generate_optimization_pair(principle_key: str, principle: dict, variant: int
     }
 
 
-def generate_manufacturing_pair(principle_key: str, principle: dict, variant: int) -> dict:
+def generate_manufacturing_pair(
+    principle_key: str, principle: dict, variant: int
+) -> dict:
     """Generate a manufacturing feasibility reasoning pair."""
     random.seed(hash((principle_key, "mfg", variant)))
     part = random.choice(PARTS)
@@ -632,7 +666,9 @@ async def scrape_topological_insights(output_dir: Path) -> list[dict]:
             try:
                 async with session.get(
                     url,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; NalanaResearch/1.0)"},
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; NalanaResearch/1.0)"
+                    },
                     timeout=aiohttp.ClientTimeout(total=15),
                     ssl=False,
                 ) as resp:
@@ -643,10 +679,11 @@ async def scrape_topological_insights(output_dir: Path) -> list[dict]:
 
                     # Extract meaningful text content
                     import re
+
                     # Strip HTML tags
-                    clean = re.sub(r'<[^>]+>', ' ', text)
+                    clean = re.sub(r"<[^>]+>", " ", text)
                     # Strip extra whitespace
-                    clean = re.sub(r'\s+', ' ', clean).strip()
+                    clean = re.sub(r"\s+", " ", clean).strip()
 
                     if len(clean) > 500:
                         insight = {
@@ -674,6 +711,7 @@ async def scrape_topological_insights(output_dir: Path) -> list[dict]:
 
 
 # ─── Main generator ────────────────────────────────────────────────────────────
+
 
 class TopologicalSignalGenerator:
     def __init__(self, output_dir: Path):
@@ -713,7 +751,9 @@ class TopologicalSignalGenerator:
             remaining = target_count - len(pairs)
             for i in range(remaining):
                 principle = material_principles[i % len(material_principles)]
-                pair = generate_structural_pair("material_selection", principle, i + 1000)
+                pair = generate_structural_pair(
+                    "material_selection", principle, i + 1000
+                )
                 pairs.append(pair)
                 pbar.update(1)
 
@@ -730,7 +770,10 @@ class TopologicalSignalGenerator:
         log.info("Attempting to scrape Topological public content...")
         insights = await scrape_topological_insights(self.output_dir)
         if insights:
-            log.info("Scraped %d Topological insights (will inform training pairs)", len(insights))
+            log.info(
+                "Scraped %d Topological insights (will inform training pairs)",
+                len(insights),
+            )
 
         return self.generate_all_pairs(target_count)
 
@@ -740,33 +783,45 @@ class TopologicalSignalGenerator:
         print("=" * 60)
         for category_key, category in PHYSICS_KNOWLEDGE_BASE.items():
             principles = category.get("principles", [])
-            print(f"\n{category_key.replace('_', ' ').title()} ({len(principles)} principles):")
+            print(
+                f"\n{category_key.replace('_', ' ').title()} ({len(principles)} principles):"
+            )
             print(f"  {category['description']}")
             for p in principles:
                 print(f"    - {p['name']}: {p['formula']}")
-        total = sum(len(c.get("principles", [])) for c in PHYSICS_KNOWLEDGE_BASE.values())
-        print(f"\nTotal: {total} physics principles across {len(PHYSICS_KNOWLEDGE_BASE)} categories")
+        total = sum(
+            len(c.get("principles", [])) for c in PHYSICS_KNOWLEDGE_BASE.values()
+        )
+        print(
+            f"\nTotal: {total} physics principles across {len(PHYSICS_KNOWLEDGE_BASE)} categories"
+        )
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate physics-based CAD reasoning training pairs for Nalana",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--count", type=int, default=500, help="Number of training pairs to generate")
     parser.add_argument(
-        "--output", type=Path,
+        "--count", type=int, default=500, help="Number of training pairs to generate"
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
         default=BASE_DIR / "data" / "integrations" / "topological",
         help="Output directory",
     )
     parser.add_argument(
-        "--scrape", action="store_true",
+        "--scrape",
+        action="store_true",
         help="Attempt to scrape Topological public content",
     )
     parser.add_argument(
-        "--knowledge-base", action="store_true",
+        "--knowledge-base",
+        action="store_true",
         help="Print knowledge base summary and exit",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -786,10 +841,14 @@ def main() -> None:
     else:
         total = generator.generate_all_pairs(args.count)
 
-    print(f"\nTopological signal generation complete:")
-    print(f"  {total} physics reasoning pairs → {args.output}/physics_reasoning_pairs.jsonl")
-    print(f"  All pairs tagged quality=4.0 (highest tier training signal)")
-    print(f"  Categories: structural, topology optimization, manufacturing, FEA, simulation")
+    print("\nTopological signal generation complete:")
+    print(
+        f"  {total} physics reasoning pairs → {args.output}/physics_reasoning_pairs.jsonl"
+    )
+    print("  All pairs tagged quality=4.0 (highest tier training signal)")
+    print(
+        "  Categories: structural, topology optimization, manufacturing, FEA, simulation"
+    )
 
 
 if __name__ == "__main__":

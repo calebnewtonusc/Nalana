@@ -30,13 +30,14 @@ from pathlib import Path
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
 VALIDATED_DIR = Path(__file__).parents[1] / "data" / "validated"
-INPUT_FILE    = VALIDATED_DIR / "dataset.jsonl"
-OUTPUT_FILE   = VALIDATED_DIR / "blender_exec.jsonl"
+INPUT_FILE = VALIDATED_DIR / "dataset.jsonl"
+OUTPUT_FILE = VALIDATED_DIR / "blender_exec.jsonl"
 REJECTED_FILE = VALIDATED_DIR / "blender_exec_rejected.jsonl"
 
 # ─── Blender test harness (runs inside Blender Python) ────────────────────────
@@ -185,7 +186,8 @@ def validate_one(args: tuple) -> dict:
     python_code = pair.get("blender_python", "").strip()
     # Strip comment-only lines to check whether any real code is present
     non_comment_lines = [
-        ln for ln in python_code.splitlines()
+        ln
+        for ln in python_code.splitlines()
         if ln.strip() and not ln.strip().startswith("#")
     ]
     if not python_code or not non_comment_lines or "bpy." not in python_code:
@@ -200,7 +202,6 @@ def validate_one(args: tuple) -> dict:
         }
 
     # Multi-line scripts often set up full scenes — score 1.0 if they run clean
-    is_multiline = "\n" in python_code
 
     mode = detect_mode(python_code)
 
@@ -218,12 +219,14 @@ def validate_one(args: tuple) -> dict:
     try:
         result = subprocess.run(
             [blender_path, "--background", "--python", script_path, "--", payload_path],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         # Extract our JSON line
         for line in result.stdout.splitlines():
             if line.startswith("NALANA_RESULT:"):
-                return json.loads(line[len("NALANA_RESULT:"):])
+                return json.loads(line[len("NALANA_RESULT:") :])
 
         # Blender crashed or couldn't find our marker
         return {
@@ -270,12 +273,22 @@ def main():
     parser.add_argument("--blender-path", help="Path to Blender executable")
     parser.add_argument("--input-file", type=Path, default=INPUT_FILE)
     parser.add_argument("--min-score", type=float, default=0.5)
-    parser.add_argument("--workers", type=int, default=4,
-                        help="Parallel Blender processes (each uses ~1GB RAM)")
-    parser.add_argument("--timeout", type=int, default=30,
-                        help="Seconds per Blender execution (default 30)")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Parallel Blender processes (each uses ~1GB RAM)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Seconds per Blender execution (default 30)",
+    )
     parser.add_argument("--limit", type=int, help="Max pairs to validate")
-    parser.add_argument("--sample", type=int, help="Validate a random sample for quick QA")
+    parser.add_argument(
+        "--sample", type=int, help="Validate a random sample for quick QA"
+    )
     args = parser.parse_args()
 
     blender = get_blender_path(args.blender_path)
@@ -291,14 +304,17 @@ def main():
 
     if args.sample:
         import random
+
         random.shuffle(pairs)
-        pairs = pairs[:args.sample]
+        pairs = pairs[: args.sample]
 
     if args.limit:
-        pairs = pairs[:args.limit]
+        pairs = pairs[: args.limit]
 
     print(f"Pairs to validate: {len(pairs):,}")
-    print(f"Workers: {args.workers} | Timeout: {args.timeout}s | Min score: {args.min_score}")
+    print(
+        f"Workers: {args.workers} | Timeout: {args.timeout}s | Min score: {args.min_score}"
+    )
     print()
 
     # Prepare work items
@@ -335,7 +351,7 @@ def main():
                 pbar.set_postfix(
                     kept=len(kept),
                     fail=errors,
-                    avg=f"{score_sum/(len(kept)+errors+1e-6):.2f}"
+                    avg=f"{score_sum / (len(kept) + errors + 1e-6):.2f}",
                 )
                 pbar.update(1)
 
@@ -357,13 +373,13 @@ def main():
     avg_score = score_sum / max(total, 1)
     keep_rate = len(kept) / max(total, 1) * 100
 
-    print(f"\n{'═'*50}")
+    print(f"\n{'═' * 50}")
     print(f"  TESTED:       {total:,}")
     print(f"  KEPT:         {len(kept):,} ({keep_rate:.1f}%)")
     print(f"  FAILED EXEC:  {errors:,}")
     print(f"  AVG SCORE:    {avg_score:.3f}")
     print(f"\n  Output: {OUTPUT_FILE}")
-    print(f"  Next: python train_prep.py")
+    print("  Next: python train_prep.py")
 
 
 if __name__ == "__main__":

@@ -33,7 +33,14 @@ ASSET_TAXONOMY: dict[str, dict[str, Any]] = {
     "category": {
         "architecture": {
             "description": "Buildings, rooms, structural elements, walls, floors, doors, windows",
-            "subcategories": ["exterior", "interior", "modular", "hero", "background", "kit_piece"],
+            "subcategories": [
+                "exterior",
+                "interior",
+                "modular",
+                "hero",
+                "background",
+                "kit_piece",
+            ],
             "typical_poly_range": (500, 500_000),
             "naming_prefix": "SM_Arch_",
         },
@@ -51,13 +58,27 @@ ASSET_TAXONOMY: dict[str, dict[str, Any]] = {
         },
         "prop": {
             "description": "Objects, furniture, tools, weapons, clothing, everyday items",
-            "subcategories": ["hero", "background", "weapon", "furniture", "electronics", "food"],
+            "subcategories": [
+                "hero",
+                "background",
+                "weapon",
+                "furniture",
+                "electronics",
+                "food",
+            ],
             "typical_poly_range": (100, 30_000),
             "naming_prefix": "SM_Prop_",
         },
         "environment": {
             "description": "Terrain, foliage, rocks, cliffs, water bodies, nature elements",
-            "subcategories": ["terrain", "foliage", "rock", "water", "sky", "modular_tile"],
+            "subcategories": [
+                "terrain",
+                "foliage",
+                "rock",
+                "water",
+                "sky",
+                "modular_tile",
+            ],
             "typical_poly_range": (50, 200_000),
             "naming_prefix": "SM_Env_",
         },
@@ -69,25 +90,57 @@ ASSET_TAXONOMY: dict[str, dict[str, Any]] = {
         },
         "material": {
             "description": "Shader node groups, PBR material definitions",
-            "subcategories": ["metal", "organic", "fabric", "glass", "plastic", "stone", "wood", "liquid"],
+            "subcategories": [
+                "metal",
+                "organic",
+                "fabric",
+                "glass",
+                "plastic",
+                "stone",
+                "wood",
+                "liquid",
+            ],
             "typical_poly_range": (0, 0),
             "naming_prefix": "M_",
         },
         "texture": {
             "description": "Image textures including maps: diffuse, normal, roughness, etc.",
-            "subcategories": ["diffuse", "normal", "roughness", "metallic", "ao", "emissive", "height", "opacity"],
+            "subcategories": [
+                "diffuse",
+                "normal",
+                "roughness",
+                "metallic",
+                "ao",
+                "emissive",
+                "height",
+                "opacity",
+            ],
             "typical_poly_range": (0, 0),
             "naming_prefix": "T_",
         },
         "hdri": {
             "description": "High dynamic range equirectangular images for lighting and IBL",
-            "subcategories": ["outdoor", "indoor", "studio", "sky", "night", "overcast"],
+            "subcategories": [
+                "outdoor",
+                "indoor",
+                "studio",
+                "sky",
+                "night",
+                "overcast",
+            ],
             "typical_poly_range": (0, 0),
             "naming_prefix": "HDRI_",
         },
         "rig": {
             "description": "Armatures and control rigs, separate from character meshes",
-            "subcategories": ["biped", "quadruped", "face", "hand", "vehicle", "mechanical"],
+            "subcategories": [
+                "biped",
+                "quadruped",
+                "face",
+                "hand",
+                "vehicle",
+                "mechanical",
+            ],
             "typical_poly_range": (0, 0),
             "naming_prefix": "RIG_",
         },
@@ -258,7 +311,12 @@ ASSET_TAXONOMY: dict[str, dict[str, Any]] = {
     "uv_status": {
         "unwrapped": {
             "description": "Clean UV islands, no overlapping, optimal texel density",
-            "suitable_for": ["hand_painting", "baking", "pbr_texturing", "udim_expansion"],
+            "suitable_for": [
+                "hand_painting",
+                "baking",
+                "pbr_texturing",
+                "udim_expansion",
+            ],
         },
         "overlapping": {
             "description": "UV islands overlap — fine for tiling textures, bad for baking",
@@ -297,7 +355,12 @@ ASSET_TAXONOMY: dict[str, dict[str, Any]] = {
         "full_body": {
             "description": "Complete character rig: body IK, facial shapes, finger controls, cloth simulation bones",
             "bone_count_range": (80, 300),
-            "features": ["IK/FK body", "facial shapes", "corrective shapes", "squash/stretch bones"],
+            "features": [
+                "IK/FK body",
+                "facial shapes",
+                "corrective shapes",
+                "squash/stretch bones",
+            ],
         },
     },
 }
@@ -315,7 +378,7 @@ DUPLICATE_DETECTION_STRATEGIES: list[dict[str, Any]] = [
             "Use as a first pass to flag candidates, not as a final decision."
         ),
         "implementation": "Set intersection of {Path(f).stem for f in file_list}",
-        "blender_example": '''
+        "blender_example": """
 import bpy
 
 def find_duplicate_names():
@@ -328,7 +391,7 @@ def find_duplicate_names():
         else:
             seen[base] = obj
     return duplicates
-''',
+""",
     },
     {
         "name": "perceptual_hash_thumbnail",
@@ -343,7 +406,7 @@ def find_duplicate_names():
             "Sensitive to camera angle — always render from the same canonical angle (front/iso)."
         ),
         "implementation": "imagehash.phash() from the imagehash library; Hamming distance threshold <= 8",
-        "blender_example": '''
+        "blender_example": """
 import bpy
 
 def render_asset_thumbnail(obj_name, output_path, size=64):
@@ -354,7 +417,7 @@ def render_asset_thumbnail(obj_name, output_path, size=64):
     bpy.context.scene.render.resolution_y = size
     bpy.context.scene.render.filepath = output_path
     bpy.ops.render.render(write_still=True)
-''',
+""",
     },
     {
         "name": "polygon_count_bbox_similarity",
@@ -369,7 +432,7 @@ def render_asset_thumbnail(obj_name, output_path, size=64):
             "May miss copies that have been scaled or slightly modified."
         ),
         "implementation": "abs(v1 - v2) / max(v1, v2) < 0.02 for vertices; bbox volume ratio within 5%",
-        "blender_example": '''
+        "blender_example": """
 import bpy
 
 def get_mesh_signature(obj):
@@ -402,7 +465,7 @@ def find_by_signature(objects, tol_verts=0.02, tol_vol=0.05):
             used.add(i)
             groups.append(group)
     return groups
-''',
+""",
     },
     {
         "name": "material_name_overlap",
@@ -414,7 +477,7 @@ def find_by_signature(objects, tol_verts=0.02, tol_vol=0.05):
             "Less useful when studios use generic material names (Material.001, etc.)."
         ),
         "implementation": "Jaccard similarity: |A & B| / |A | B| >= 0.5",
-        "blender_example": '''
+        "blender_example": """
 import bpy
 
 def material_jaccard(obj_a, obj_b):
@@ -425,7 +488,7 @@ def material_jaccard(obj_a, obj_b):
     intersection = len(mats_a & mats_b)
     union = len(mats_a | mats_b)
     return intersection / union if union > 0 else 0.0
-''',
+""",
     },
     {
         "name": "vertex_count_exact_match",
@@ -438,7 +501,7 @@ def material_jaccard(obj_a, obj_b):
             "May miss assets that have been slightly modified (vertex welded, subdivided, etc.)."
         ),
         "implementation": "Group all objects by len(obj.data.vertices); any group with size > 1 is a candidate",
-        "blender_example": '''
+        "blender_example": """
 import bpy
 from collections import defaultdict
 
@@ -449,7 +512,7 @@ def find_exact_vertex_duplicates():
             vcount = len(obj.data.vertices)
             buckets[vcount].append(obj)
     return {k: v for k, v in buckets.items() if len(v) > 1}
-''',
+""",
     },
 ]
 
@@ -457,7 +520,8 @@ def find_exact_vertex_duplicates():
 
 FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
     ".blend": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Blender native format. Stores everything: meshes, materials, node trees, "
             "particles, linked libraries, render settings. Single-file project OR library. "
@@ -468,7 +532,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "full_procedural",
     },
     ".fbx": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Most common game engine interchange format. Supports meshes, armatures, "
             "animations, blend shapes (shape keys), and basic Lambert/Phong materials. "
@@ -480,7 +545,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "basic_phong_lambert",
     },
     ".obj": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Oldest universal mesh format. Supports geometry, UVs, normals, and basic "
             "MTL material references. No animation, no armatures. Widely supported. "
@@ -491,7 +557,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "mtl_file",
     },
     ".gltf": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "glTF 2.0 (JSON + separate .bin + textures). 'JPEG of 3D' — designed for "
             "web and real-time. Supports PBR metallic-roughness workflow, animation, "
@@ -502,7 +569,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "pbr_metallic_roughness",
     },
     ".glb": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Binary glTF — same as .gltf but single self-contained file. "
             "Ideal for distribution and runtime loading. Same feature set as .gltf."
@@ -512,7 +580,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "pbr_metallic_roughness",
     },
     ".abc": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Alembic — designed for animated geometry caches. Stores per-frame "
             "vertex positions, UV, normals. Used for cloth sim, fluid sim, crowd caches. "
@@ -523,7 +592,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "none_baked_geo_only",
     },
     ".usd": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Universal Scene Description (Pixar/Apple). Emerging VFX and game standard. "
             "Supports layering, variants, references, and full scene hierarchy. "
@@ -534,7 +604,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "usd_preview_surface_and_mdl",
     },
     ".usda": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "USD ASCII variant — human readable, diffable. Slower to load than binary .usdc. "
             "Best for debugging USD scenes and pipeline development."
@@ -544,7 +615,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "usd_preview_surface",
     },
     ".usdc": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "USD Crate (binary) — compact and fast to load. Preferred format for "
             "production USD pipelines. Same data model as .usda, just compressed binary."
@@ -554,7 +626,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "usd_preview_surface",
     },
     ".usdz": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "USD ZIP — single-file USD bundle (scene + textures). Apple AR format. "
             "Used for iOS/macOS AR Quick Look."
@@ -564,7 +637,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "usd_preview_surface",
     },
     ".dae": {
-        "read": True, "write": False,
+        "read": True,
+        "write": False,
         "notes": (
             "COLLADA — XML-based interchange format, largely superseded by glTF. "
             "Still used in some older pipelines and game engines (SketchUp, Godot). "
@@ -575,7 +649,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "phong_lambert",
     },
     ".ply": {
-        "read": True, "write": False,
+        "read": True,
+        "write": False,
         "notes": (
             "Polygon File Format — common for point clouds and scan data. "
             "Supports per-vertex color, normals, arbitrary properties. "
@@ -586,7 +661,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "vertex_color_only",
     },
     ".stl": {
-        "read": True, "write": True,
+        "read": True,
+        "write": True,
         "notes": (
             "Stereolithography — triangles only, no UVs, no materials, no scale units. "
             "Standard for 3D printing. Binary STL preferred (smaller than ASCII). "
@@ -597,7 +673,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "none",
     },
     ".3ds": {
-        "read": True, "write": False,
+        "read": True,
+        "write": False,
         "notes": (
             "3ds Max legacy format (pre-2010). Supports mesh, materials, cameras, lights. "
             "Hard limits: 65535 vertices per mesh, 8-char material names. "
@@ -608,7 +685,8 @@ FILE_FORMAT_SUPPORT: dict[str, dict[str, Any]] = {
         "material_support": "basic",
     },
     ".dxf": {
-        "read": True, "write": False,
+        "read": True,
+        "write": False,
         "notes": (
             "AutoCAD Drawing Exchange Format. Used in CAD and architectural workflows. "
             "Supports 2D and 3D geometry. Common for floor plans, technical drawings. "
@@ -658,7 +736,11 @@ ASSET_NAMING_CONVENTIONS: dict[str, Any] = {
             "meaning": "Blueprint / Prefab",
             "software_origin": "Unreal Engine",
             "description": "Composite asset grouping mesh + logic + child objects. Interactive prop in Unreal.",
-            "examples": ["BP_Door_Sliding", "BP_Light_Ceiling_Dimmable", "BP_Crate_Destructible"],
+            "examples": [
+                "BP_Door_Sliding",
+                "BP_Light_Ceiling_Dimmable",
+                "BP_Crate_Destructible",
+            ],
         },
         "FX_": {
             "meaning": "Visual Effect / Particle System",
@@ -1829,12 +1911,16 @@ class AssetManager:
 
         # Override with directory-level hints
         category_dir_map = {
-            "character": "character", "characters": "character",
-            "vehicle": "vehicle", "vehicles": "vehicle",
+            "character": "character",
+            "characters": "character",
+            "vehicle": "vehicle",
+            "vehicles": "vehicle",
             "architecture": "architecture",
             "props": "prop",
-            "environment": "environment", "environments": "environment",
-            "fx": "fx", "vfx": "fx",
+            "environment": "environment",
+            "environments": "environment",
+            "fx": "fx",
+            "vfx": "fx",
             "textures": "texture",
             "materials": "material",
             "hdri": "hdri",
@@ -1954,7 +2040,9 @@ class AssetManager:
         # Pass 1: name similarity
         name_buckets: dict[str, list[int]] = {}
         for i, asset in enumerate(assets):
-            stem = Path(asset.get("file_path", asset.get("name", f"asset_{i}"))).stem.lower()
+            stem = Path(
+                asset.get("file_path", asset.get("name", f"asset_{i}"))
+            ).stem.lower()
             stem = re.sub(r"_v\d+$", "", stem)
             stem = re.sub(r"_copy\d*$", "", stem)
             stem = re.sub(r"\.\d+$", "", stem)
@@ -1967,7 +2055,9 @@ class AssetManager:
                 used_indices.update(indices)
 
         # Pass 2: polygon count + bounding box
-        remaining = [(i, assets[i]) for i in range(len(assets)) if i not in used_indices]
+        remaining = [
+            (i, assets[i]) for i in range(len(assets)) if i not in used_indices
+        ]
         for i, (idx_a, asset_a) in enumerate(remaining):
             if idx_a in used_indices:
                 continue
@@ -1976,7 +2066,7 @@ class AssetManager:
             if poly_a < 0 or vol_a < 0:
                 continue
             group = [asset_a]
-            for idx_b, asset_b in remaining[i + 1:]:
+            for idx_b, asset_b in remaining[i + 1 :]:
                 if idx_b in used_indices:
                     continue
                 poly_b = asset_b.get("poly_count", -1)
@@ -1996,7 +2086,9 @@ class AssetManager:
                 duplicate_groups.append(group)
 
         # Pass 3: material Jaccard
-        remaining = [(i, assets[i]) for i in range(len(assets)) if i not in used_indices]
+        remaining = [
+            (i, assets[i]) for i in range(len(assets)) if i not in used_indices
+        ]
         for i, (idx_a, asset_a) in enumerate(remaining):
             if idx_a in used_indices:
                 continue
@@ -2004,7 +2096,7 @@ class AssetManager:
             if not mats_a:
                 continue
             group = [asset_a]
-            for idx_b, asset_b in remaining[i + 1:]:
+            for idx_b, asset_b in remaining[i + 1 :]:
                 if idx_b in used_indices:
                     continue
                 mats_b = set(asset_b.get("materials", []))
@@ -2032,13 +2124,15 @@ class AssetManager:
         pairs: list[dict[str, Any]] = []
 
         for pair in ASSET_MANAGEMENT_TRAINING_PAIRS:
-            pairs.append({
-                "input": pair["input"],
-                "output": pair["output"].strip(),
-                "domain": "asset_management",
-                "source": "curated",
-                "task_type": self._classify_task_type(pair["input"]),
-            })
+            pairs.append(
+                {
+                    "input": pair["input"],
+                    "output": pair["output"].strip(),
+                    "domain": "asset_management",
+                    "source": "curated",
+                    "task_type": self._classify_task_type(pair["input"]),
+                }
+            )
 
         search_queries = [
             "Find all character meshes",
@@ -2145,21 +2239,21 @@ class AssetManager:
         condition_str = " and ".join(code_conditions) if code_conditions else "True"
 
         output_code = (
-            f'import bpy\n\n'
-            f'def search_assets():\n'
+            f"import bpy\n\n"
+            f"def search_assets():\n"
             f'    """Semantic search: {query}"""\n'
-            f'    results = []\n'
-            f'    for obj in bpy.data.objects:\n'
+            f"    results = []\n"
+            f"    for obj in bpy.data.objects:\n"
             f"        if obj.type not in {{'MESH', 'ARMATURE', 'CURVE'}}:\n"
-            f'            continue\n'
-            f'        if {condition_str}:\n'
-            f'            results.append(obj)\n'
+            f"            continue\n"
+            f"        if {condition_str}:\n"
+            f"            results.append(obj)\n"
             f'    print(f"Query: \\"{query}\\"  |  Found {{len(results)}} asset(s):")\n'
-            f'    for obj in results:\n'
+            f"    for obj in results:\n"
             f"        poly_count = len(obj.data.polygons) if obj.type == 'MESH' else 0\n"
             f'        print(f"  {{obj.name}} ({{poly_count:,}} polys)")\n'
-            f'    return results\n\n'
-            f'search_assets()'
+            f"    return results\n\n"
+            f"search_assets()"
         )
 
         return {
@@ -2454,19 +2548,26 @@ print(f"Renamed {renamed} object(s) to Unreal Engine convention.")""",
     def _classify_task_type(query: str) -> str:
         """Classify a natural language query into an asset management task type."""
         q = query.lower()
-        if any(k in q for k in ["find", "search", "show me", "list", "which", "what objects"]):
+        if any(
+            k in q
+            for k in ["find", "search", "show me", "list", "which", "what objects"]
+        ):
             return "semantic_search"
         if any(k in q for k in ["rename", "naming", "convention"]):
             return "naming_convention"
         if any(k in q for k in ["export", "pack", "deliver", "send"]):
             return "export_operation"
-        if any(k in q for k in ["organize", "sort", "move to", "collection", "hierarchy"]):
+        if any(
+            k in q for k in ["organize", "sort", "move to", "collection", "hierarchy"]
+        ):
             return "organization"
         if any(k in q for k in ["duplicate", "same", "identical", "copy"]):
             return "duplicate_detection"
         if any(k in q for k in ["tag", "metadata", "property", "label", "auto-tag"]):
             return "auto_tagging"
-        if any(k in q for k in ["validate", "check", "audit", "verify", "clean", "missing"]):
+        if any(
+            k in q for k in ["validate", "check", "audit", "verify", "clean", "missing"]
+        ):
             return "validation"
         return "batch_operation"
 
@@ -2530,35 +2631,45 @@ def main() -> None:
         print("\nRunning duplicate detection demo...")
         demo_assets = [
             {
-                "name": "Barrel_Wood", "file_path": "props/Barrel_Wood.blend",
-                "poly_count": 1024, "bbox_volume": 2.5,
+                "name": "Barrel_Wood",
+                "file_path": "props/Barrel_Wood.blend",
+                "poly_count": 1024,
+                "bbox_volume": 2.5,
                 "materials": ["M_Wood", "M_Metal"],
             },
             {
-                "name": "Barrel_Wood_v2", "file_path": "props/Barrel_Wood_v2.blend",
-                "poly_count": 1024, "bbox_volume": 2.5,
+                "name": "Barrel_Wood_v2",
+                "file_path": "props/Barrel_Wood_v2.blend",
+                "poly_count": 1024,
+                "bbox_volume": 2.5,
                 "materials": ["M_Wood", "M_Metal"],
             },
             {
-                "name": "barrel_wood", "file_path": "old/barrel_wood.fbx",
-                "poly_count": 1024, "bbox_volume": 2.48,
+                "name": "barrel_wood",
+                "file_path": "old/barrel_wood.fbx",
+                "poly_count": 1024,
+                "bbox_volume": 2.48,
                 "materials": ["M_WoodOld"],
             },
             {
-                "name": "Chair_01", "file_path": "furniture/Chair_01.fbx",
-                "poly_count": 800, "bbox_volume": 1.2,
+                "name": "Chair_01",
+                "file_path": "furniture/Chair_01.fbx",
+                "poly_count": 800,
+                "bbox_volume": 1.2,
                 "materials": ["M_Fabric"],
             },
             {
-                "name": "Table_Round", "file_path": "furniture/Table_Round.fbx",
-                "poly_count": 2000, "bbox_volume": 4.1,
+                "name": "Table_Round",
+                "file_path": "furniture/Table_Round.fbx",
+                "poly_count": 2000,
+                "bbox_volume": 4.1,
                 "materials": ["M_Glass", "M_Steel"],
             },
         ]
         groups = manager.find_duplicates(demo_assets)
         print(f"Found {len(groups)} duplicate group(s):")
         for i, group in enumerate(groups):
-            print(f"  Group {i+1}: {[a['name'] for a in group]}")
+            print(f"  Group {i + 1}: {[a['name'] for a in group]}")
 
     if not any([args.generate_pairs, args.scan, args.find_duplicates]):
         parser.print_help()

@@ -23,18 +23,18 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
 OBJAVERSE_DIR = Path(__file__).parents[1] / "data" / "objaverse"
-RENDERS_DIR   = OBJAVERSE_DIR / "renders"
+RENDERS_DIR = OBJAVERSE_DIR / "renders"
 
 # The Blender script that actually does the rendering (runs inside Blender's Python)
 BLENDER_RENDER_SCRIPT = """
@@ -173,31 +173,48 @@ def get_blender_path(hint: str | None = None) -> str:
     for c in candidates:
         if c and (Path(c).exists() or c == "blender"):
             return c
-    raise RuntimeError("Blender not found. Pass --blender-path or set BLENDER_PATH env var.")
+    raise RuntimeError(
+        "Blender not found. Pass --blender-path or set BLENDER_PATH env var."
+    )
 
 
-def render_object(uid: str, input_file: str, blender_path: str) -> tuple[str, bool, str]:
+def render_object(
+    uid: str, input_file: str, blender_path: str
+) -> tuple[str, bool, str]:
     out_dir = RENDERS_DIR / uid
     if (out_dir / "front.png").exists():
         return uid, True, "cached"
 
     # Write the Blender script to a temp file using full uid to avoid collisions
-    import tempfile
     script_path = RENDERS_DIR / f"_render_script_{uid}.py"
     script_path.parent.mkdir(parents=True, exist_ok=True)
     script_path.write_text(BLENDER_RENDER_SCRIPT)
 
     try:
         result = subprocess.run(
-            [blender_path, "--background", "--python", str(script_path),
-             "--", input_file, str(out_dir), uid],
-            capture_output=True, text=True, timeout=120,
+            [
+                blender_path,
+                "--background",
+                "--python",
+                str(script_path),
+                "--",
+                input_file,
+                str(out_dir),
+                uid,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         script_path.unlink(missing_ok=True)
         if result.returncode == 0 and (out_dir / "front.png").exists():
             return uid, True, "ok"
         else:
-            return uid, False, result.stderr[-500:] if result.stderr else "unknown error"
+            return (
+                uid,
+                False,
+                result.stderr[-500:] if result.stderr else "unknown error",
+            )
     except subprocess.TimeoutExpired:
         script_path.unlink(missing_ok=True)
         return uid, False, "timeout"
@@ -214,9 +231,13 @@ def load_metadata() -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Render Objaverse objects via headless Blender")
+    parser = argparse.ArgumentParser(
+        description="Render Objaverse objects via headless Blender"
+    )
     parser.add_argument("--blender-path", help="Path to Blender executable")
-    parser.add_argument("--workers", type=int, default=4, help="Parallel Blender processes")
+    parser.add_argument(
+        "--workers", type=int, default=4, help="Parallel Blender processes"
+    )
     parser.add_argument("--limit", type=int, help="Max objects to render")
     parser.add_argument("--uid", help="Render a single specific UID")
     args = parser.parse_args()
@@ -232,10 +253,14 @@ def main():
     if args.uid:
         objects = [o for o in objects if o["uid"] == args.uid]
 
-    already_done = set(p.name for p in RENDERS_DIR.glob("*") if (RENDERS_DIR / p.name / "front.png").exists())
+    already_done = set(
+        p.name
+        for p in RENDERS_DIR.glob("*")
+        if (RENDERS_DIR / p.name / "front.png").exists()
+    )
     pending = [o for o in objects if o["uid"] not in already_done]
     if args.limit:
-        pending = pending[:args.limit]
+        pending = pending[: args.limit]
 
     print(f"Total objects: {len(objects):,}")
     print(f"Already rendered: {len(already_done):,}")
@@ -271,7 +296,7 @@ def main():
         pbar.close()
 
     print(f"\nDone. OK: {ok:,}  Errors: {err:,}")
-    print(f"Next step: python annotate_forms.py")
+    print("Next step: python annotate_forms.py")
 
 
 if __name__ == "__main__":

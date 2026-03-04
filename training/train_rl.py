@@ -1,4 +1,7 @@
-import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 """
 train_rl.py - Stage 2: Execution-reward RL for Nalana
 
@@ -45,7 +48,6 @@ Usage:
 import argparse
 import json
 import logging
-import math
 import os
 import subprocess
 import sys
@@ -57,9 +59,7 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-from datasets import Dataset
 from peft import LoraConfig, TaskType, get_peft_model
-from torch.utils.data import DataLoader, DistributedSampler
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -69,12 +69,14 @@ from transformers import (
 
 try:
     import wandb
+
     HAS_WANDB = True
 except ImportError:
     HAS_WANDB = False
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
@@ -95,7 +97,7 @@ log = logging.getLogger("nalana-rl")
 
 # ─── Blender reward harness (embedded, mirrors validate_blender.py logic) ─────
 
-BLENDER_HARNESS = '''
+BLENDER_HARNESS = """
 import bpy, sys, json, traceback
 
 def reset_scene():
@@ -169,10 +171,11 @@ print("NALANA_RESULT:" + json.dumps({
     "exec_error": exec_error,
     "scene_changed": scene_changed,
 }))
-'''
+"""
 
 
 # ─── Reward function ──────────────────────────────────────────────────────────
+
 
 class NalanaRewardFunction:
     """
@@ -196,7 +199,9 @@ class NalanaRewardFunction:
         self.blender_path = self._resolve_blender(blender_path)
         self.timeout = timeout
         self.workers = workers
-        log.info(f"Reward function: Blender={self.blender_path}, workers={workers}, timeout={timeout}s")
+        log.info(
+            f"Reward function: Blender={self.blender_path}, workers={workers}, timeout={timeout}s"
+        )
 
     @staticmethod
     def _resolve_blender(hint: Optional[str]) -> str:
@@ -233,11 +238,15 @@ class NalanaRewardFunction:
         payload_path = None
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as pf:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as pf:
                 json.dump(payload, pf)
                 payload_path = pf.name
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as sf:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".py", delete=False
+            ) as sf:
                 sf.write(BLENDER_HARNESS)
                 script_path = sf.name
 
@@ -245,8 +254,10 @@ class NalanaRewardFunction:
                 [
                     self.blender_path,
                     "--background",
-                    "--python", script_path,
-                    "--", payload_path,
+                    "--python",
+                    script_path,
+                    "--",
+                    payload_path,
                 ],
                 capture_output=True,
                 text=True,
@@ -255,7 +266,7 @@ class NalanaRewardFunction:
 
             for line in result.stdout.splitlines():
                 if line.startswith("NALANA_RESULT:"):
-                    data = json.loads(line[len("NALANA_RESULT:"):])
+                    data = json.loads(line[len("NALANA_RESULT:") :])
                     return float(data.get("score", 0.0))
 
             # Blender ran but no result marker — crash or unexpected output
@@ -285,8 +296,7 @@ class NalanaRewardFunction:
 
         with ProcessPoolExecutor(max_workers=workers) as pool:
             futures = {
-                pool.submit(self._execute_one, code): i
-                for i, code in enumerate(codes)
+                pool.submit(self._execute_one, code): i for i, code in enumerate(codes)
             }
             for future in as_completed(futures):
                 idx = futures[future]
@@ -323,6 +333,7 @@ class NalanaRewardFunction:
 
 # ─── Dataset ──────────────────────────────────────────────────────────────────
 
+
 def load_rl_prompts(data_dir: Path, limit: Optional[int] = None) -> list[dict]:
     """
     Load training prompts from the SFT dataset (ShareGPT format).
@@ -350,10 +361,12 @@ def load_rl_prompts(data_dir: Path, limit: Optional[int] = None) -> list[dict]:
         # Extract human turns as prompts (we'll generate assistant completions)
         human_turns = [c for c in convs if c.get("from") == "human"]
         if human_turns:
-            prompts.append({
-                "prompt_text": human_turns[0]["value"],
-                "conversations": convs,
-            })
+            prompts.append(
+                {
+                    "prompt_text": human_turns[0]["value"],
+                    "conversations": convs,
+                }
+            )
 
     if limit:
         prompts = prompts[:limit]
@@ -411,6 +424,7 @@ def extract_blender_code(text: str) -> str:
 
 # ─── GRPO Loss ────────────────────────────────────────────────────────────────
 
+
 def compute_grpo_loss(
     model,
     ref_log_probs: torch.Tensor,
@@ -452,9 +466,9 @@ def compute_grpo_loss(
     logits = outputs.logits  # [B, T, V]
 
     # Shift for autoregressive: predict token t+1 from token t
-    shift_logits = logits[:, :-1, :]   # [B, T-1, V]
-    shift_labels = input_ids[:, 1:]    # [B, T-1]
-    shift_mask   = response_mask[:, 1:]  # [B, T-1]
+    shift_logits = logits[:, :-1, :]  # [B, T-1, V]
+    shift_labels = input_ids[:, 1:]  # [B, T-1]
+    shift_mask = response_mask[:, 1:]  # [B, T-1]
 
     # Per-token log probs under current policy
     log_probs = F.log_softmax(shift_logits, dim=-1)  # [B, T-1, V]
@@ -512,18 +526,15 @@ def compute_advantages(scores: list[list[float]]) -> list[list[float]]:
     advantages = []
     for group in scores:
         group_mean = sum(group) / len(group)
-        group_std = (
-            sum((s - group_mean) ** 2 for s in group) / len(group)
-        ) ** 0.5
+        group_std = (sum((s - group_mean) ** 2 for s in group) / len(group)) ** 0.5
         # Normalize by std for stability (avoid tiny/huge gradients)
-        normed = [
-            (s - group_mean) / (group_std + 1e-8) for s in group
-        ]
+        normed = [(s - group_mean) / (group_std + 1e-8) for s in group]
         advantages.append(normed)
     return advantages
 
 
 # ─── Reference model log probs ────────────────────────────────────────────────
+
 
 @torch.no_grad()
 def compute_ref_log_probs(
@@ -542,17 +553,16 @@ def compute_ref_log_probs(
     outputs = ref_model(input_ids=input_ids, attention_mask=attention_mask)
     logits = outputs.logits[:, :-1, :]
     labels = input_ids[:, 1:]
-    mask   = response_mask[:, 1:]
+    mask = response_mask[:, 1:]
 
     log_probs = F.log_softmax(logits, dim=-1)
-    token_log_probs = log_probs.gather(
-        dim=-1, index=labels.unsqueeze(-1)
-    ).squeeze(-1)
+    token_log_probs = log_probs.gather(dim=-1, index=labels.unsqueeze(-1)).squeeze(-1)
 
     return token_log_probs * mask  # [B, T-1]
 
 
 # ─── Tokenization helpers ──────────────────────────────────────────────────────
+
 
 def tokenize_prompt_and_response(
     prompt: str,
@@ -583,7 +593,7 @@ def tokenize_prompt_and_response(
     )
 
     prompt_len = prompt_encoding["input_ids"].shape[1]
-    total_len  = encoding["input_ids"].shape[1]
+    total_len = encoding["input_ids"].shape[1]
 
     # Response mask: 0 for prompt tokens, 1 for response tokens
     response_mask = torch.zeros(total_len, dtype=torch.long)
@@ -602,24 +612,24 @@ def pad_batch(items: list[dict], tokenizer, max_length: int) -> dict:
     """
     max_len = min(max(item["input_ids"].shape[0] for item in items), max_length)
 
-    input_ids_list     = []
+    input_ids_list = []
     attention_mask_list = []
-    response_mask_list  = []
+    response_mask_list = []
 
     pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
 
     for item in items:
-        ids  = item["input_ids"]
+        ids = item["input_ids"]
         attn = item["attention_mask"]
         resp = item["response_mask"]
 
         pad_len = max_len - ids.shape[0]
         if pad_len > 0:
-            ids  = torch.cat([ids,  torch.full((pad_len,), pad_id,   dtype=torch.long)])
-            attn = torch.cat([attn, torch.zeros(pad_len,              dtype=torch.long)])
-            resp = torch.cat([resp, torch.zeros(pad_len,              dtype=torch.long)])
+            ids = torch.cat([ids, torch.full((pad_len,), pad_id, dtype=torch.long)])
+            attn = torch.cat([attn, torch.zeros(pad_len, dtype=torch.long)])
+            resp = torch.cat([resp, torch.zeros(pad_len, dtype=torch.long)])
         else:
-            ids  = ids[:max_len]
+            ids = ids[:max_len]
             attn = attn[:max_len]
             resp = resp[:max_len]
 
@@ -628,13 +638,14 @@ def pad_batch(items: list[dict], tokenizer, max_length: int) -> dict:
         response_mask_list.append(resp)
 
     return {
-        "input_ids":      torch.stack(input_ids_list),
+        "input_ids": torch.stack(input_ids_list),
         "attention_mask": torch.stack(attention_mask_list),
-        "response_mask":  torch.stack(response_mask_list),
+        "response_mask": torch.stack(response_mask_list),
     }
 
 
 # ─── Generation ───────────────────────────────────────────────────────────────
+
 
 @torch.no_grad()
 def generate_completions(
@@ -688,6 +699,7 @@ def generate_completions(
 
 # ─── GRPO Trainer ─────────────────────────────────────────────────────────────
 
+
 class GRPOTrainer:
     """
     Group Relative Policy Optimization trainer for Nalana.
@@ -715,13 +727,13 @@ class GRPOTrainer:
         scheduler,
         args: argparse.Namespace,
     ):
-        self.model     = model
+        self.model = model
         self.ref_model = ref_model
         self.tokenizer = tokenizer
         self.reward_fn = reward_fn
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.args      = args
+        self.args = args
 
         self.device = next(model.parameters()).device
         self.global_step = 0
@@ -729,7 +741,7 @@ class GRPOTrainer:
 
         # Stats tracking
         self.running_rewards = []
-        self.running_losses  = []
+        self.running_losses = []
 
     def train_step(self, prompt_batch: list[dict]) -> dict:
         """
@@ -739,10 +751,7 @@ class GRPOTrainer:
         self.model.eval()  # Eval mode during generation (no dropout)
 
         # 1. Format prompts
-        prompt_texts = [
-            build_prompt_text(p, self.tokenizer)
-            for p in prompt_batch
-        ]
+        prompt_texts = [build_prompt_text(p, self.tokenizer) for p in prompt_batch]
 
         # 2. Generate N completions per prompt
         all_completions = []  # List of lists: [[comp1..compN], [comp1..compN], ...]
@@ -760,8 +769,7 @@ class GRPOTrainer:
 
         # 3. Extract Blender code and score via execution
         all_codes = [
-            [extract_blender_code(c) for c in group]
-            for group in all_completions
+            [extract_blender_code(c) for c in group] for group in all_completions
         ]
         raw_scores = self.reward_fn.score_groups(all_codes)  # [[float, ...], ...]
 
@@ -772,7 +780,9 @@ class GRPOTrainer:
         train_items = []
         flat_advantages = []
 
-        for i, (prompt_text, completions) in enumerate(zip(prompt_texts, all_completions)):
+        for i, (prompt_text, completions) in enumerate(
+            zip(prompt_texts, all_completions)
+        ):
             for j, completion in enumerate(completions):
                 tok = tokenize_prompt_and_response(
                     prompt_text,
@@ -788,10 +798,12 @@ class GRPOTrainer:
 
         # 6. Pad and move to device
         batch = pad_batch(train_items, self.tokenizer, self.args.max_length)
-        input_ids      = batch["input_ids"].to(self.device)
+        input_ids = batch["input_ids"].to(self.device)
         attention_mask = batch["attention_mask"].to(self.device)
-        response_mask  = batch["response_mask"].to(self.device)
-        advantages_t   = torch.tensor(flat_advantages, dtype=torch.float32).to(self.device)
+        response_mask = batch["response_mask"].to(self.device)
+        advantages_t = torch.tensor(flat_advantages, dtype=torch.float32).to(
+            self.device
+        )
 
         # 7. Compute reference log probs (frozen SFT model)
         ref_log_probs = compute_ref_log_probs(
@@ -825,12 +837,18 @@ class GRPOTrainer:
 
         # Add reward stats to metrics
         flat_scores = [s for group in raw_scores for s in group]
-        metrics["reward/mean"]    = sum(flat_scores) / len(flat_scores)
-        metrics["reward/success"] = sum(1 for s in flat_scores if s == 1.0) / len(flat_scores)
-        metrics["reward/partial"] = sum(1 for s in flat_scores if s == 0.5) / len(flat_scores)
-        metrics["reward/failure"] = sum(1 for s in flat_scores if s == 0.0) / len(flat_scores)
-        metrics["train/lr"]       = self.scheduler.get_last_lr()[0]
-        metrics["train/step"]     = self.global_step
+        metrics["reward/mean"] = sum(flat_scores) / len(flat_scores)
+        metrics["reward/success"] = sum(1 for s in flat_scores if s == 1.0) / len(
+            flat_scores
+        )
+        metrics["reward/partial"] = sum(1 for s in flat_scores if s == 0.5) / len(
+            flat_scores
+        )
+        metrics["reward/failure"] = sum(1 for s in flat_scores if s == 0.0) / len(
+            flat_scores
+        )
+        metrics["train/lr"] = self.scheduler.get_last_lr()[0]
+        metrics["train/step"] = self.global_step
 
         self.running_rewards.extend(flat_scores)
         self.running_losses.append(metrics["loss/total"])
@@ -840,7 +858,9 @@ class GRPOTrainer:
 
     def save_checkpoint(self, output_dir: Path, tag: str = ""):
         """Save model checkpoint and training state."""
-        ckpt_dir = output_dir / f"checkpoint-{self.global_step}{'-' + tag if tag else ''}"
+        ckpt_dir = (
+            output_dir / f"checkpoint-{self.global_step}{'-' + tag if tag else ''}"
+        )
         ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         # Save model (LoRA adapter weights or full model)
@@ -869,10 +889,10 @@ class GRPOTrainer:
 
         step = self.global_step
         reward = metrics.get("reward/mean", 0)
-        loss   = metrics.get("loss/total", 0)
-        kl     = metrics.get("loss/kl", 0)
-        lr     = metrics.get("train/lr", 0)
-        succ   = metrics.get("reward/success", 0)
+        loss = metrics.get("loss/total", 0)
+        kl = metrics.get("loss/kl", 0)
+        lr = metrics.get("train/lr", 0)
+        succ = metrics.get("reward/success", 0)
 
         log.info(
             f"step {step:>5} | loss {loss:.4f} | kl {kl:.4f} | "
@@ -885,59 +905,119 @@ class GRPOTrainer:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Stage 2: GRPO RL training for Nalana")
 
     # Model args
-    parser.add_argument("--base-model", required=True,
-                        help="Path to SFT checkpoint (from train.py), or HF model ID")
+    parser.add_argument(
+        "--base-model",
+        required=True,
+        help="Path to SFT checkpoint (from train.py), or HF model ID",
+    )
     parser.add_argument("--output-dir", default="checkpoints/nalana-rl")
-    parser.add_argument("--ref-model", default=None,
-                        help="Reference model path (defaults to --base-model)")
+    parser.add_argument(
+        "--ref-model",
+        default=None,
+        help="Reference model path (defaults to --base-model)",
+    )
     parser.add_argument("--deepspeed", type=str, help="Path to DeepSpeed config JSON")
     parser.add_argument("--flash-attn", action="store_true", default=False)
-    parser.add_argument("--lora-r", type=int, default=32,
-                        help="LoRA rank for RL (lower than SFT, more stable)")
+    parser.add_argument(
+        "--lora-r",
+        type=int,
+        default=32,
+        help="LoRA rank for RL (lower than SFT, more stable)",
+    )
 
     # Data args
     parser.add_argument("--data-dir", default="data/train")
-    parser.add_argument("--num-prompts", type=int, default=None,
-                        help="Limit number of training prompts (for debugging)")
+    parser.add_argument(
+        "--num-prompts",
+        type=int,
+        default=None,
+        help="Limit number of training prompts (for debugging)",
+    )
 
     # RL args
-    parser.add_argument("--num-samples", type=int, default=4,
-                        help="Number of completions to generate per prompt (N in GRPO)")
-    parser.add_argument("--max-steps", type=int, default=2000,
-                        help="Total RL training steps")
-    parser.add_argument("--batch-size", type=int, default=4,
-                        help="Number of prompts per step (effective = batch * num-samples completions)")
-    parser.add_argument("--learning-rate", type=float, default=1e-6,
-                        help="Learning rate (lower than SFT — RL is sensitive)")
-    parser.add_argument("--kl-coeff", type=float, default=0.1,
-                        help="KL divergence penalty weight (prevents policy collapse)")
-    parser.add_argument("--temperature", type=float, default=1.0,
-                        help="Generation temperature (1.0 = diverse completions)")
-    parser.add_argument("--max-new-tokens", type=int, default=512,
-                        help="Max tokens to generate per completion")
-    parser.add_argument("--max-length", type=int, default=1024,
-                        help="Max total sequence length (prompt + response)")
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=4,
+        help="Number of completions to generate per prompt (N in GRPO)",
+    )
+    parser.add_argument(
+        "--max-steps", type=int, default=2000, help="Total RL training steps"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=4,
+        help="Number of prompts per step (effective = batch * num-samples completions)",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=1e-6,
+        help="Learning rate (lower than SFT — RL is sensitive)",
+    )
+    parser.add_argument(
+        "--kl-coeff",
+        type=float,
+        default=0.1,
+        help="KL divergence penalty weight (prevents policy collapse)",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Generation temperature (1.0 = diverse completions)",
+    )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=512,
+        help="Max tokens to generate per completion",
+    )
+    parser.add_argument(
+        "--max-length",
+        type=int,
+        default=1024,
+        help="Max total sequence length (prompt + response)",
+    )
     parser.add_argument("--grad-clip", type=float, default=1.0)
-    parser.add_argument("--grad-accum-steps", type=int, default=1,
-                        help="Gradient accumulation steps (effective batch size = batch-size × grad-accum-steps)")
+    parser.add_argument(
+        "--grad-accum-steps",
+        type=int,
+        default=1,
+        help="Gradient accumulation steps (effective batch size = batch-size × grad-accum-steps)",
+    )
     parser.add_argument("--warmup-steps", type=int, default=50)
 
     # Blender reward args
     parser.add_argument("--blender-path", type=str, default=None)
-    parser.add_argument("--blender-workers", type=int, default=4,
-                        help="Parallel Blender processes for reward evaluation")
-    parser.add_argument("--blender-timeout", type=int, default=30,
-                        help="Timeout per Blender execution (seconds)")
+    parser.add_argument(
+        "--blender-workers",
+        type=int,
+        default=4,
+        help="Parallel Blender processes for reward evaluation",
+    )
+    parser.add_argument(
+        "--blender-timeout",
+        type=int,
+        default=30,
+        help="Timeout per Blender execution (seconds)",
+    )
 
     # Checkpoint args
     parser.add_argument("--save-steps", type=int, default=100)
     parser.add_argument("--save-total-limit", type=int, default=5)
-    parser.add_argument("--resume-from", type=str, default=None,
-                        help="Resume training from a checkpoint directory")
+    parser.add_argument(
+        "--resume-from",
+        type=str,
+        default=None,
+        help="Resume training from a checkpoint directory",
+    )
 
     # Logging
     parser.add_argument("--no-wandb", action="store_true")
@@ -993,8 +1073,15 @@ def main():
         task_type=TaskType.CAUSAL_LM,
         r=args.lora_r,
         lora_alpha=args.lora_r * 2,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                         "gate_proj", "up_proj", "down_proj"],
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],
         lora_dropout=0.0,  # No dropout during RL (we need stable gradients)
         bias="none",
     )
@@ -1024,7 +1111,7 @@ def main():
     optimizer = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad],
         lr=args.learning_rate,
-        weight_decay=0.0,   # No weight decay for RL
+        weight_decay=0.0,  # No weight decay for RL
         betas=(0.9, 0.95),
     )
     scheduler = get_cosine_schedule_with_warmup(
@@ -1058,7 +1145,7 @@ def main():
             log.info(f"Resumed from step {trainer.global_step}")
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    log.info(f"\nStarting GRPO RL training")
+    log.info("\nStarting GRPO RL training")
     log.info(f"  Policy model: {args.base_model}")
     log.info(f"  Prompts: {len(prompts):,}")
     log.info(f"  Steps: {args.max_steps:,}")
@@ -1095,6 +1182,7 @@ def main():
                 old = kept_checkpoints.pop(0)
                 if old.exists():
                     import shutil
+
                     shutil.rmtree(str(old))
                     log.info(f"Removed old checkpoint: {old}")
 
@@ -1125,10 +1213,12 @@ def main():
     if HAS_WANDB and not args.no_wandb:
         wandb.finish()
 
-    log.info(f"\nRL training complete.")
+    log.info("\nRL training complete.")
     log.info(f"  Final model: {final_dir}")
     log.info(f"  Best reward: {trainer.best_avg_reward:.3f}")
-    log.info(f"\nNext: python train_dpo.py --base-model {final_dir} --output-dir checkpoints/nalana-dpo")
+    log.info(
+        f"\nNext: python train_dpo.py --base-model {final_dir} --output-dir checkpoints/nalana-dpo"
+    )
 
 
 if __name__ == "__main__":

@@ -7,7 +7,10 @@ Seed pairs bootstrap the process; GPU synthesis creates the real depth.
 """
 
 from __future__ import annotations
-import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import argparse
 import json
@@ -17,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from knowledge import physics_kb
 from knowledge.physics_kb import (
     GPU_SYNTHESIS_JOBS,
     PBR_PRESETS,
@@ -119,7 +121,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Leather jacket cloth simulation ready.")
         """),
     },
-
     # ── Fluid ───────────────────────────────────────────────────────────────
     {
         "user": "Set up a water splash simulation inside a fluid domain.",
@@ -186,7 +187,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Honey fluid simulation configured.")
         """),
     },
-
     # ── Rigid Body ──────────────────────────────────────────────────────────
     {
         "user": "Make these objects fall and collide as rigid bodies. They should be rubber balls.",
@@ -279,7 +279,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Door hinge constraint configured.")
         """),
     },
-
     # ── Smoke & Fire ────────────────────────────────────────────────────────
     {
         "user": "Add campfire smoke coming from this object.",
@@ -346,7 +345,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Explosion simulation configured at 128 resolution.")
         """),
     },
-
     # ── Soft Body ───────────────────────────────────────────────────────────
     {
         "user": "Make this cube squash and stretch like jelly when it falls.",
@@ -408,7 +406,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Belly jiggle soft body configured. Create 'sb_pin' vertex group and paint weights.")
         """),
     },
-
     # ── Particles ───────────────────────────────────────────────────────────
     {
         "user": "Create a particle system that emits sparks from this mesh.",
@@ -488,7 +485,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Snow particle system created. Set render object to a small flake mesh.")
         """),
     },
-
     # ── Force Fields ────────────────────────────────────────────────────────
     {
         "user": "Add a wind force that pushes the cloth to the right.",
@@ -529,7 +525,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print("Vortex force field added.")
         """),
     },
-
     # ── Constraint-Based Physics ────────────────────────────────────────────
     {
         "user": "Make this chain of objects simulate as a rope.",
@@ -580,7 +575,6 @@ SEED_SIMULATION_PAIRS: list[dict[str, str]] = [
             print(f"Chain rope simulation set up for {len(chain_objects)} links.")
         """),
     },
-
     # ── Material + Sim Combined ─────────────────────────────────────────────
     {
         "user": "Create a realistic ocean surface with foam and displacement.",
@@ -1248,6 +1242,7 @@ SEED_PHYSICS_REASONING_PAIRS: list[dict[str, str]] = [
 
 # ─── 3. SIMULATION DATA GENERATOR ────────────────────────────────────────────
 
+
 class SimulationDataGenerator:
     """
     Orchestrates generation of physics simulation training data for Nalana.
@@ -1263,7 +1258,9 @@ class SimulationDataGenerator:
     ) -> None:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.anthropic_api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
+        self.anthropic_api_key = anthropic_api_key or os.environ.get(
+            "ANTHROPIC_API_KEY"
+        )
 
     def _write_jsonl(self, pairs: list[dict], filename: str) -> Path:
         """Write a list of dicts to a JSONL file, one JSON object per line."""
@@ -1285,7 +1282,7 @@ class SimulationDataGenerator:
                 "source": "seed_simulation",
                 "domain": "physics_simulation",
                 "messages": [
-                    {"role": "user",      "content": p["user"]},
+                    {"role": "user", "content": p["user"]},
                     {"role": "assistant", "content": p["assistant"]},
                 ],
             }
@@ -1297,7 +1294,7 @@ class SimulationDataGenerator:
                 "source": "seed_physics_reasoning",
                 "domain": "physics_reasoning",
                 "messages": [
-                    {"role": "user",      "content": p["user"]},
+                    {"role": "user", "content": p["user"]},
                     {"role": "assistant", "content": p["assistant"]},
                 ],
             }
@@ -1305,9 +1302,9 @@ class SimulationDataGenerator:
         ]
 
         all_seeds = sim_records + reasoning_records
-        self._write_jsonl(sim_records,       "seed_simulation_pairs.jsonl")
+        self._write_jsonl(sim_records, "seed_simulation_pairs.jsonl")
         self._write_jsonl(reasoning_records, "seed_reasoning_pairs.jsonl")
-        return self._write_jsonl(all_seeds,  "seed_all.jsonl")
+        return self._write_jsonl(all_seeds, "seed_all.jsonl")
 
     def generate_via_gpu_synthesis(self, synthesis_jobs: list[dict]) -> list[dict]:
         """
@@ -1349,7 +1346,7 @@ class SimulationDataGenerator:
 
             for i, raw in enumerate(results):
                 record = {
-                    "id":     f"{job_id}_{i:04d}",
+                    "id": f"{job_id}_{i:04d}",
                     "source": f"gpu_synthesis:{job.get('source', 'unknown')}",
                     "domain": job.get("domain", "physics"),
                     "messages": [],
@@ -1358,18 +1355,24 @@ class SimulationDataGenerator:
                 # Normalize QA pairs from various output formats
                 if "user" in raw and "assistant" in raw:
                     record["messages"] = [
-                        {"role": "user",      "content": raw["user"]},
+                        {"role": "user", "content": raw["user"]},
                         {"role": "assistant", "content": raw["assistant"]},
                     ]
                 elif "question" in raw and "answer" in raw:
                     record["messages"] = [
-                        {"role": "user",      "content": raw["question"]},
+                        {"role": "user", "content": raw["question"]},
                         {"role": "assistant", "content": raw["answer"]},
                     ]
 
                 # Carry through any structured metadata
-                for key in ("physics_principle", "blender_parameter", "blender_node",
-                            "material_type", "principled_bsdf_params", "reasoning"):
+                for key in (
+                    "physics_principle",
+                    "blender_parameter",
+                    "blender_node",
+                    "material_type",
+                    "principled_bsdf_params",
+                    "reasoning",
+                ):
                     if key in raw:
                         record[key] = raw[key]
 
@@ -1436,18 +1439,20 @@ class SimulationDataGenerator:
                 + "\n```"
             )
 
-            pairs.append({
-                "id":           f"combined_{i:04d}",
-                "source":       "combinatorial_generation",
-                "domain":       "material_and_physics",
-                "material":     mat_name,
-                "sim_category": sim_cat,
-                "sim_preset":   sim_preset,
-                "messages": [
-                    {"role": "user",      "content": user_msg},
-                    {"role": "assistant", "content": assistant_msg},
-                ],
-            })
+            pairs.append(
+                {
+                    "id": f"combined_{i:04d}",
+                    "source": "combinatorial_generation",
+                    "domain": "material_and_physics",
+                    "material": mat_name,
+                    "sim_category": sim_cat,
+                    "sim_preset": sim_preset,
+                    "messages": [
+                        {"role": "user", "content": user_msg},
+                        {"role": "assistant", "content": assistant_msg},
+                    ],
+                }
+            )
 
         self._write_jsonl(pairs, f"combined_sim_material_{n}pairs.jsonl")
         return pairs
@@ -1525,16 +1530,18 @@ class SimulationDataGenerator:
                 f"{code}\n```"
             )
 
-            pairs.append({
-                "id":       f"material_qa_{mat_name}",
-                "source":   "material_qa_generation",
-                "domain":   "pbr_materials",
-                "material": mat_name,
-                "messages": [
-                    {"role": "user",      "content": user_msg},
-                    {"role": "assistant", "content": assistant_msg},
-                ],
-            })
+            pairs.append(
+                {
+                    "id": f"material_qa_{mat_name}",
+                    "source": "material_qa_generation",
+                    "domain": "pbr_materials",
+                    "material": mat_name,
+                    "messages": [
+                        {"role": "user", "content": user_msg},
+                        {"role": "assistant", "content": assistant_msg},
+                    ],
+                }
+            )
 
         self._write_jsonl(pairs, "material_qa_pairs.jsonl")
         return pairs
@@ -1566,25 +1573,29 @@ class SimulationDataGenerator:
         synth_results = self.generate_via_gpu_synthesis(GPU_SYNTHESIS_JOBS)
 
         summary = {
-            "seed_pairs":        seed_count,
-            "combined_pairs":    len(combined),
+            "seed_pairs": seed_count,
+            "combined_pairs": len(combined),
             "material_qa_pairs": len(mat_qa),
-            "synthesis_pairs":   len(synth_results),
-            "total":             seed_count + len(combined) + len(mat_qa) + len(synth_results),
+            "synthesis_pairs": len(synth_results),
+            "total": seed_count + len(combined) + len(mat_qa) + len(synth_results),
         }
 
-        print(f"\n{'='*50}")
-        print(f"Generation complete. Summary:")
+        print(f"\n{'=' * 50}")
+        print("Generation complete. Summary:")
         for key, val in summary.items():
             print(f"  {key:20s}: {val}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
         summary_path = self.output_dir / "generation_summary.json"
         with summary_path.open("w") as f:
-            json.dump({
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                "counts":    summary,
-            }, f, indent=2)
+            json.dump(
+                {
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "counts": summary,
+                },
+                f,
+                indent=2,
+            )
 
         return summary
 
@@ -1613,7 +1624,7 @@ def create_blender_material_code(preset_name: str, preset: dict[str, Any]) -> st
         f"{mat_var}.use_nodes = True",
         f"nodes = {mat_var}.node_tree.nodes",
         f"links = {mat_var}.node_tree.links",
-        f"nodes.clear()",
+        "nodes.clear()",
         "",
         "output     = nodes.new('ShaderNodeOutputMaterial')",
         "principled = nodes.new('ShaderNodeBsdfPrincipled')",
@@ -1624,22 +1635,22 @@ def create_blender_material_code(preset_name: str, preset: dict[str, Any]) -> st
 
     # Map preset keys to Principled BSDF input socket names
     socket_map: dict[str, str] = {
-        "base_color":       "Base Color",
-        "metallic":         "Metallic",
-        "roughness":        "Roughness",
-        "ior":              "IOR",
-        "specular":         "Specular IOR Level",
-        "transmission":     "Transmission Weight",
-        "subsurface":       "Subsurface Weight",
-        "subsurface_radius":"Subsurface Radius",
-        "anisotropic":      "Anisotropic",
+        "base_color": "Base Color",
+        "metallic": "Metallic",
+        "roughness": "Roughness",
+        "ior": "IOR",
+        "specular": "Specular IOR Level",
+        "transmission": "Transmission Weight",
+        "subsurface": "Subsurface Weight",
+        "subsurface_radius": "Subsurface Radius",
+        "anisotropic": "Anisotropic",
         "anisotropic_rotation": "Anisotropic Rotation",
-        "clearcoat":        "Coat Weight",
+        "clearcoat": "Coat Weight",
         "clearcoat_roughness": "Coat Roughness",
-        "sheen":            "Sheen Weight",
-        "sheen_tint":       "Sheen Tint",
+        "sheen": "Sheen Weight",
+        "sheen_tint": "Sheen Tint",
         "emission_strength": "Emission Strength",
-        "emission_color":   "Emission Color",
+        "emission_color": "Emission Color",
     }
 
     for key, socket in socket_map.items():
@@ -1648,17 +1659,19 @@ def create_blender_material_code(preset_name: str, preset: dict[str, Any]) -> st
         value = preset[key]
         lines.append(f"principled.inputs[{socket!r}].default_value = {value!r}")
 
-    lines.extend([
-        "",
-        "links.new(principled.outputs['BSDF'], output.inputs['Surface'])",
-        "",
-        "# Assign to active object",
-        "obj = bpy.context.active_object",
-        f"if obj and obj.type == 'MESH':",
-        f"    obj.data.materials.clear()",
-        f"    obj.data.materials.append({mat_var})",
-        f"    print(f'Applied {display_name!r} material to {{obj.name}}')",
-    ])
+    lines.extend(
+        [
+            "",
+            "links.new(principled.outputs['BSDF'], output.inputs['Surface'])",
+            "",
+            "# Assign to active object",
+            "obj = bpy.context.active_object",
+            "if obj and obj.type == 'MESH':",
+            "    obj.data.materials.clear()",
+            f"    obj.data.materials.append({mat_var})",
+            f"    print(f'Applied {display_name!r} material to {{obj.name}}')",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -1678,11 +1691,11 @@ def generate_synthesis_job_queue(jobs: list[dict[str, Any]], output_path: str) -
         output_path: File path to write the JSON queue.
     """
     queue: dict[str, Any] = {
-        "queue_version":    "1.0",
-        "created_at":       datetime.utcnow().isoformat() + "Z",
-        "total_jobs":       len(jobs),
-        "pending_count":    sum(1 for j in jobs if j.get("status") == "pending"),
-        "complete_count":   sum(1 for j in jobs if j.get("status") == "complete"),
+        "queue_version": "1.0",
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "total_jobs": len(jobs),
+        "pending_count": sum(1 for j in jobs if j.get("status") == "pending"),
+        "complete_count": sum(1 for j in jobs if j.get("status") == "complete"),
         "total_expected_pairs": sum(j.get("expected_pairs", 0) for j in jobs),
         "jobs": [],
     }
@@ -1734,7 +1747,9 @@ def _format_sim_setup_code(
     Returns:
         Python code string (without import bpy).
     """
-    lines: list[str] = [f"# {preset_name.replace('_', ' ').title()} {category.replace('_', ' ')} preset"]
+    lines: list[str] = [
+        f"# {preset_name.replace('_', ' ').title()} {category.replace('_', ' ')} preset"
+    ]
 
     if category == "cloth":
         lines += [
@@ -1802,7 +1817,7 @@ def _format_sim_setup_code(
             f"domain.vorticity       = {params.get('vorticity', 0.2)}",
             f"domain.use_dissolve    = {params.get('use_dissolve', True)}",
             f"domain.dissolve_speed  = {params.get('dissolve_speed', 25)}",
-            f"domain.use_noise       = True",
+            "domain.use_noise       = True",
         ]
 
     else:
@@ -1996,5 +2011,7 @@ if __name__ == "__main__":
             ran_something = True
 
         if not ran_something:
-            print("No action specified. Use --all or specify --generate-seeds, --create-synthesis-queue, or --n-material-pairs N")
+            print(
+                "No action specified. Use --all or specify --generate-seeds, --create-synthesis-queue, or --n-material-pairs N"
+            )
             parser.print_help()

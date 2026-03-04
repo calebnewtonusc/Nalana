@@ -42,14 +42,14 @@ import logging
 import re
 import sys
 import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from tqdm import tqdm
 
 try:
     import aiohttp
+
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -79,6 +79,7 @@ REQUEST_DELAY = 1.5  # seconds between requests per domain
 
 # ─── Source catalog ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class TextSource:
     name: str
@@ -87,7 +88,7 @@ class TextSource:
     topic: str
     expertise_level: str  # "foundational" | "intermediate" | "expert"
     license: str
-    synthesis_role: str   # What aspect of 3D intelligence this builds
+    synthesis_role: str  # What aspect of 3D intelligence this builds
     synthesis_prompt_suffix: str  # Domain-specific synthesis instruction
 
 
@@ -102,7 +103,7 @@ SOURCES: list[TextSource] = [
             "https://www.feynmanlectures.caltech.edu/I_27.html",  # Geometric Optics
             "https://www.feynmanlectures.caltech.edu/I_28.html",  # Electromagnetic Radiation
             "https://www.feynmanlectures.caltech.edu/I_34.html",  # Relativistic Effects in Radiation
-            "https://www.feynmanlectures.caltech.edu/II_32.html", # Refractive Index of Dense Materials
+            "https://www.feynmanlectures.caltech.edu/II_32.html",  # Refractive Index of Dense Materials
         ],
         topic="light_physics",
         expertise_level="expert",
@@ -429,33 +430,35 @@ SOURCE_MAP = {s.name: s for s in SOURCES}
 
 # Tags to strip completely (tag + content)
 STRIP_TAGS = re.compile(
-    r'<(script|style|nav|header|footer|aside|noscript|iframe|figure|figcaption)[^>]*>.*?</\1>',
+    r"<(script|style|nav|header|footer|aside|noscript|iframe|figure|figcaption)[^>]*>.*?</\1>",
     re.DOTALL | re.IGNORECASE,
 )
 # Tags to remove but keep content
-INLINE_TAGS = re.compile(r'<[^>]+>', re.DOTALL)
+INLINE_TAGS = re.compile(r"<[^>]+>", re.DOTALL)
 # Collapse whitespace
-WHITESPACE = re.compile(r'\s+')
+WHITESPACE = re.compile(r"\s+")
 # Footnote references like [1], [2]
-FOOTNOTES = re.compile(r'\[\d+\]')
+FOOTNOTES = re.compile(r"\[\d+\]")
 # URL-like artifacts
-URL_ARTIFACTS = re.compile(r'https?://\S+')
+URL_ARTIFACTS = re.compile(r"https?://\S+")
 # Edit links and Wikipedia-specific junk
-WIKI_JUNK = re.compile(r'\[edit\]|\[citation needed\]|\[dubious\]|\[clarification needed\]')
+WIKI_JUNK = re.compile(
+    r"\[edit\]|\[citation needed\]|\[dubious\]|\[clarification needed\]"
+)
 
 
 def html_to_clean_text(html: str) -> str:
     """Extract clean readable text from HTML, removing navigation and boilerplate."""
     # Remove scripts, styles, nav, header, footer
-    text = STRIP_TAGS.sub(' ', html)
+    text = STRIP_TAGS.sub(" ", html)
     # Remove remaining HTML tags
-    text = INLINE_TAGS.sub(' ', text)
+    text = INLINE_TAGS.sub(" ", text)
     # Remove Wikipedia edit/citation artifacts
-    text = WIKI_JUNK.sub('', text)
-    text = FOOTNOTES.sub('', text)
-    text = URL_ARTIFACTS.sub('', text)
+    text = WIKI_JUNK.sub("", text)
+    text = FOOTNOTES.sub("", text)
+    text = URL_ARTIFACTS.sub("", text)
     # Collapse whitespace
-    text = WHITESPACE.sub(' ', text).strip()
+    text = WHITESPACE.sub(" ", text).strip()
     return text
 
 
@@ -484,7 +487,7 @@ def chunk_text(
         # Try to break at sentence boundary
         if end < text_len:
             # Search backward for sentence-ending punctuation
-            for boundary in ('. ', '! ', '? ', '\n\n', '\n'):
+            for boundary in (". ", "! ", "? ", "\n\n", "\n"):
                 last_boundary = text.rfind(boundary, start + chunk_size // 2, end)
                 if last_boundary != -1:
                     end = last_boundary + len(boundary)
@@ -497,7 +500,9 @@ def chunk_text(
         estimated_tokens = len(chunk_text_content) // CHARS_PER_TOKEN
 
         chunk = {
-            "chunk_id": hashlib.md5(f"{source_name}_{chunk_idx}_{chunk_text_content[:50]}".encode()).hexdigest()[:12],
+            "chunk_id": hashlib.md5(
+                f"{source_name}_{chunk_idx}_{chunk_text_content[:50]}".encode()
+            ).hexdigest()[:12],
             "source": source_name,
             "source_url": url,
             "topic": topic,
@@ -514,7 +519,7 @@ def chunk_text(
                 f"about the physics/design principle and Nalana explains it deeply, connecting it to "
                 f"practical 3D work (materials, lighting, rendering, modeling, simulation). "
                 f"Each Q&A pair should be in JSON format: "
-                f'{{\"voice_command\": \"...\", \"task_type\": \"UNDERSTAND\", \"reasoning\": \"...\", \"quality\": 4.5}}. '
+                f'{{"voice_command": "...", "task_type": "UNDERSTAND", "reasoning": "...", "quality": 4.5}}. '
                 f"Additional focus: {synthesis_prompt}"
             ),
         }
@@ -528,6 +533,7 @@ def chunk_text(
 
 
 # ─── Async fetcher ─────────────────────────────────────────────────────────────
+
 
 class TextFetcher:
     def __init__(self, output_dir: Path, delay: float = REQUEST_DELAY):
@@ -546,6 +552,7 @@ class TextFetcher:
 
     def _get_domain(self, url: str) -> str:
         from urllib.parse import urlparse
+
         return urlparse(url).netloc
 
     async def _rate_limited_get(self, url: str) -> str | None:
@@ -565,7 +572,9 @@ class TextFetcher:
         self._last_request_by_domain[domain] = time.monotonic()
 
         if self._session is None:
-            raise RuntimeError("HTTP session not initialized. Use async context manager.")
+            raise RuntimeError(
+                "HTTP session not initialized. Use async context manager."
+            )
         try:
             headers = {
                 "User-Agent": "Mozilla/5.0 (compatible; NalanaDataCollector/1.0; education)",
@@ -573,7 +582,8 @@ class TextFetcher:
                 "Accept-Language": "en-US,en;q=0.9",
             }
             async with self._session.get(
-                url, headers=headers,
+                url,
+                headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
                 ssl=False,
             ) as resp:
@@ -603,7 +613,12 @@ class TextFetcher:
 
             clean = html_to_clean_text(html)
             if len(clean) < 500:
-                log.warning("[%s] Skipping %s — too short (%d chars)", source.name, url, len(clean))
+                log.warning(
+                    "[%s] Skipping %s — too short (%d chars)",
+                    source.name,
+                    url,
+                    len(clean),
+                )
                 continue
 
             chunks = chunk_text(
@@ -632,10 +647,18 @@ class TextFetcher:
         async with aiohttp.ClientSession(connector=connector) as session:
             self._session = session
 
-            all_bar = tqdm(total=sum(len(s.urls) for s in sources), desc="Fetching sources", unit="url")
+            all_bar = tqdm(
+                total=sum(len(s.urls) for s in sources),
+                desc="Fetching sources",
+                unit="url",
+            )
 
             for source in sources:
-                log.info("Processing source: %s (%d URLs)", source.display_name, len(source.urls))
+                log.info(
+                    "Processing source: %s (%d URLs)",
+                    source.display_name,
+                    len(source.urls),
+                )
                 chunks = await self.fetch_source(source)
                 all_bar.update(len(source.urls))
 
@@ -652,8 +675,13 @@ class TextFetcher:
 
                 source_counts[source.name] = len(chunks)
                 total_tokens = sum(c["estimated_tokens"] for c in chunks)
-                log.info("[%s] Wrote %d chunks (~%dk tokens) → %s",
-                         source.name, len(chunks), total_tokens // 1000, out_file)
+                log.info(
+                    "[%s] Wrote %d chunks (~%dk tokens) → %s",
+                    source.name,
+                    len(chunks),
+                    total_tokens // 1000,
+                    out_file,
+                )
 
             all_bar.close()
 
@@ -661,6 +689,7 @@ class TextFetcher:
 
 
 # ─── Stats function ────────────────────────────────────────────────────────────
+
 
 def compute_stats(output_dir: Path) -> None:
     """Print statistics for all existing chunk files."""
@@ -674,12 +703,12 @@ def compute_stats(output_dir: Path) -> None:
         print("No JSONL files found. Run collection first.")
         return
 
-    print(f"\nDesign Physics Dataset Stats")
-    print(f"{'='*60}")
+    print("\nDesign Physics Dataset Stats")
+    print(f"{'=' * 60}")
     print(f"Directory: {output_dir}")
-    print(f"{'─'*60}")
+    print(f"{'─' * 60}")
     print(f"{'Source':<30} {'Chunks':>8} {'Tokens':>10} {'Topic':<20}")
-    print(f"{'─'*60}")
+    print(f"{'─' * 60}")
 
     total_chunks = 0
     total_tokens = 0
@@ -709,20 +738,29 @@ def compute_stats(output_dir: Path) -> None:
         by_topic[topic]["chunks"] += chunks
         by_topic[topic]["tokens"] += tokens
 
-    print(f"{'─'*60}")
+    print(f"{'─' * 60}")
     print(f"{'TOTAL':<30} {total_chunks:>8} {total_tokens:>10,}")
 
-    print(f"\nBy topic:")
+    print("\nBy topic:")
     for topic, stats in sorted(by_topic.items()):
-        print(f"  {topic:<28} {stats['chunks']:>6} chunks  {stats['tokens']:>8,} tokens")
+        print(
+            f"  {topic:<28} {stats['chunks']:>6} chunks  {stats['tokens']:>8,} tokens"
+        )
 
-    print(f"\nEstimated synthesis output:")
-    print(f"  {total_chunks} chunks × 10 Q&A pairs/chunk = ~{total_chunks * 10:,} training pairs")
-    print(f"  At quality=4.5 (highest tier) — this is Nalana's physics/design genius layer")
-    print(f"  GPU time: ~{total_chunks * 3 // 60}h on 4× A6000 (Qwen2.5-72B @ ~30 chunks/min)")
+    print("\nEstimated synthesis output:")
+    print(
+        f"  {total_chunks} chunks × 10 Q&A pairs/chunk = ~{total_chunks * 10:,} training pairs"
+    )
+    print(
+        "  At quality=4.5 (highest tier) — this is Nalana's physics/design genius layer"
+    )
+    print(
+        f"  GPU time: ~{total_chunks * 3 // 60}h on 4× A6000 (Qwen2.5-72B @ ~30 chunks/min)"
+    )
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -734,33 +772,42 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--all", dest="all_sources", action="store_true",
+        "--all",
+        dest="all_sources",
+        action="store_true",
         help="Fetch all configured sources",
     )
     parser.add_argument(
-        "--source", nargs="+",
+        "--source",
+        nargs="+",
         choices=list(SOURCE_MAP.keys()),
         help="Fetch specific source(s) by name",
     )
     parser.add_argument(
-        "--output", type=Path,
+        "--output",
+        type=Path,
         default=DEFAULT_OUTPUT,
         help="Output directory for JSONL chunk files",
     )
     parser.add_argument(
-        "--delay", type=float, default=REQUEST_DELAY,
+        "--delay",
+        type=float,
+        default=REQUEST_DELAY,
         help="Seconds between requests per domain",
     )
     parser.add_argument(
-        "--stats", action="store_true",
+        "--stats",
+        action="store_true",
         help="Print stats for existing output directory and exit",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Show sources that would be fetched without fetching",
     )
     parser.add_argument(
-        "--list-sources", action="store_true",
+        "--list-sources",
+        action="store_true",
         help="List all available sources and exit",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -779,7 +826,9 @@ def main() -> None:
         print("─" * 90)
         for s in SOURCES:
             print(f"{s.name:<25} {s.topic:<22} {len(s.urls):>5}  {s.display_name[:40]}")
-        print(f"\nTotal: {len(SOURCES)} sources, {sum(len(s.urls) for s in SOURCES)} URLs")
+        print(
+            f"\nTotal: {len(SOURCES)} sources, {sum(len(s.urls) for s in SOURCES)} URLs"
+        )
         return
 
     # Select sources to fetch
@@ -806,7 +855,9 @@ def main() -> None:
             total_urls += len(s.urls)
         print(f"\nTotal: {total_urls} URLs to fetch")
         print(f"Estimated chunks: {total_urls * 5}-{total_urls * 15}")
-        print(f"Estimated synthesis pairs: {total_urls * 5 * 10}-{total_urls * 15 * 10}")
+        print(
+            f"Estimated synthesis pairs: {total_urls * 5 * 10}-{total_urls * 15 * 10}"
+        )
         return
 
     # Run fetcher
@@ -817,7 +868,7 @@ def main() -> None:
 
     # Summary
     total_chunks = sum(source_counts.values())
-    print(f"\nCollection complete:")
+    print("\nCollection complete:")
     print(f"  Sources processed: {len(source_counts)}")
     print(f"  Total chunks: {total_chunks}")
     print(f"  Total estimated synthesis pairs: ~{total_chunks * 10:,}")

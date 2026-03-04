@@ -29,23 +29,68 @@ OBJAVERSE_DIR = Path(__file__).parents[1] / "data" / "objaverse"
 # These correspond to Objaverse's lvis annotation categories
 TARGET_CATEGORIES = {
     # Hard surface / product design
-    "electronics": ["phone", "laptop", "camera", "computer", "tablet", "headphones",
-                    "keyboard", "mouse", "speaker", "monitor", "television"],
-    "furniture": ["chair", "table", "sofa", "couch", "desk", "bed", "shelf",
-                  "cabinet", "lamp", "bookcase"],
-    "vehicles": ["car", "truck", "motorcycle", "bicycle", "airplane", "boat",
-                 "helicopter", "scooter", "bus"],
-    "tools": ["hammer", "wrench", "screwdriver", "drill", "saw", "knife",
-              "scissors", "pliers"],
-    "containers": ["bottle", "cup", "mug", "bowl", "box", "jar", "vase",
-                   "can", "bucket"],
+    "electronics": [
+        "phone",
+        "laptop",
+        "camera",
+        "computer",
+        "tablet",
+        "headphones",
+        "keyboard",
+        "mouse",
+        "speaker",
+        "monitor",
+        "television",
+    ],
+    "furniture": [
+        "chair",
+        "table",
+        "sofa",
+        "couch",
+        "desk",
+        "bed",
+        "shelf",
+        "cabinet",
+        "lamp",
+        "bookcase",
+    ],
+    "vehicles": [
+        "car",
+        "truck",
+        "motorcycle",
+        "bicycle",
+        "airplane",
+        "boat",
+        "helicopter",
+        "scooter",
+        "bus",
+    ],
+    "tools": [
+        "hammer",
+        "wrench",
+        "screwdriver",
+        "drill",
+        "saw",
+        "knife",
+        "scissors",
+        "pliers",
+    ],
+    "containers": [
+        "bottle",
+        "cup",
+        "mug",
+        "bowl",
+        "box",
+        "jar",
+        "vase",
+        "can",
+        "bucket",
+    ],
     "buildings": ["house", "building", "tower", "bridge", "church", "castle"],
-
     # Organic / characters
     "characters": ["person", "human", "character", "figure", "mannequin"],
     "animals": ["dog", "cat", "bird", "horse", "fish", "dragon"],
     "plants": ["tree", "plant", "flower", "grass", "bush"],
-
     # Architectural / environments
     "interior": ["room", "kitchen", "bathroom", "living room", "office"],
     "props": ["weapon", "sword", "shield", "gun", "armor"],
@@ -76,7 +121,9 @@ def download_objaverse(limit: int, categories: list[str], seed: int = 42) -> lis
     else:
         target_keywords = set(ALL_KEYWORDS)
 
-    print(f"Filtering {len(annotations):,} objects by {len(target_keywords)} keywords...")
+    print(
+        f"Filtering {len(annotations):,} objects by {len(target_keywords)} keywords..."
+    )
     filtered = {}
     for uid, meta in annotations.items():
         name = (meta.get("name", "") + " " + meta.get("description", "")).lower()
@@ -103,16 +150,26 @@ def download_objaverse(limit: int, categories: list[str], seed: int = 42) -> lis
     results = []
     for uid, local_path in objects.items():
         meta = filtered.get(uid, {})
-        results.append({
-            "uid": uid,
-            "name": meta.get("name", uid),
-            "description": meta.get("description", ""),
-            "tags": meta.get("tags", []),
-            "local_path": str(local_path),
-            "categories": [cat for cat, kws in TARGET_CATEGORIES.items()
-                          if any(kw in (meta.get("name","")+" "+meta.get("description","")).lower()
-                                 for kw in kws)],
-        })
+        results.append(
+            {
+                "uid": uid,
+                "name": meta.get("name", uid),
+                "description": meta.get("description", ""),
+                "tags": meta.get("tags", []),
+                "local_path": str(local_path),
+                "categories": [
+                    cat
+                    for cat, kws in TARGET_CATEGORIES.items()
+                    if any(
+                        kw
+                        in (
+                            meta.get("name", "") + " " + meta.get("description", "")
+                        ).lower()
+                        for kw in kws
+                    )
+                ],
+            }
+        )
 
     return results
 
@@ -145,18 +202,34 @@ def print_stats():
     for cat, count in sorted(cat_counts.items(), key=lambda x: -x[1]):
         print(f"  {cat:<20} {count:>6,}")
 
-    rendered = len(list((OBJAVERSE_DIR / "renders").glob("*/front.png"))) if (OBJAVERSE_DIR / "renders").exists() else 0
-    annotated = len(list((OBJAVERSE_DIR / "annotations").glob("*.json"))) if (OBJAVERSE_DIR / "annotations").exists() else 0
+    rendered = (
+        len(list((OBJAVERSE_DIR / "renders").glob("*/front.png")))
+        if (OBJAVERSE_DIR / "renders").exists()
+        else 0
+    )
+    annotated = (
+        len(list((OBJAVERSE_DIR / "annotations").glob("*.json")))
+        if (OBJAVERSE_DIR / "annotations").exists()
+        else 0
+    )
     print(f"\nRendered:  {rendered:,}")
     print(f"Annotated: {annotated:,}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download and prepare Objaverse 3D objects")
-    parser.add_argument("--limit", type=int, default=50000, help="Max objects to download")
-    parser.add_argument("--categories", nargs="+", default=["all"],
-                        choices=list(TARGET_CATEGORIES.keys()) + ["all"],
-                        help="Categories to include")
+    parser = argparse.ArgumentParser(
+        description="Download and prepare Objaverse 3D objects"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=50000, help="Max objects to download"
+    )
+    parser.add_argument(
+        "--categories",
+        nargs="+",
+        default=["all"],
+        choices=list(TARGET_CATEGORIES.keys()) + ["all"],
+        help="Categories to include",
+    )
     parser.add_argument("--stats", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -168,7 +241,7 @@ def main():
     objects = download_objaverse(args.limit, args.categories, args.seed)
     if objects:
         save_metadata(objects)
-        print(f"\nNext step: python render_pipeline.py")
+        print("\nNext step: python render_pipeline.py")
 
 
 if __name__ == "__main__":

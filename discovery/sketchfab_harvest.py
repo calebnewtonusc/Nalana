@@ -126,11 +126,14 @@ def extract_model_record(model: dict) -> dict:
         "view_count": model.get("viewCount", 0),
         "download_count": model.get("downloadCount", 0),
         "published_at": model.get("publishedAt", ""),
-        "license": model.get("license", {}).get("label", "unknown") if model.get("license") else "unknown",
+        "license": model.get("license", {}).get("label", "unknown")
+        if model.get("license")
+        else "unknown",
         "url": f"https://sketchfab.com/3d-models/{model.get('uid', '')}",
         "thumbnail_url": (
             model.get("thumbnails", {}).get("images", [{}])[0].get("url", "")
-            if model.get("thumbnails", {}).get("images") else ""
+            if model.get("thumbnails", {}).get("images")
+            else ""
         ),
         "type": "sketchfab_model",
     }
@@ -158,18 +161,28 @@ def save_records(records: list[dict]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Harvest Sketchfab model metadata")
-    parser.add_argument("--token", default=os.environ.get("SKETCHFAB_TOKEN", ""),
-                        help="Sketchfab API token (optional, increases rate limits)")
-    parser.add_argument("--max-pages", type=int, default=500,
-                        help="Max pages to crawl per category (24 models/page)")
-    parser.add_argument("--all-categories", action="store_true",
-                        help="Crawl all useful categories (default: top models only)")
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("SKETCHFAB_TOKEN", ""),
+        help="Sketchfab API token (optional, increases rate limits)",
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=500,
+        help="Max pages to crawl per category (24 models/page)",
+    )
+    parser.add_argument(
+        "--all-categories",
+        action="store_true",
+        help="Crawl all useful categories (default: top models only)",
+    )
     args = parser.parse_args()
 
     seen_uids = load_seen_uids()
     total_saved = 0
 
-    print(f"=== SKETCHFAB METADATA HARVESTER ===")
+    print("=== SKETCHFAB METADATA HARVESTER ===")
     print(f"Starting with {len(seen_uids)} already seen models\n")
 
     crawl_targets = []
@@ -225,7 +238,7 @@ def main():
             print(f"  Page {pages}: +{len(new_records)} new | total: {total_saved}")
             time.sleep(0.5)  # polite rate limiting
 
-    print(f"\n=== DONE ===")
+    print("\n=== DONE ===")
     print(f"Total Sketchfab records saved: {total_saved}")
     print(f"Output: {SKETCHFAB_FILE}")
 

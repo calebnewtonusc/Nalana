@@ -21,6 +21,7 @@ import urllib.error
 # Houdini imports — available only inside Houdini.
 try:
     import hou
+
     _IN_HOUDINI = True
 except ImportError:
     _IN_HOUDINI = False
@@ -28,10 +29,12 @@ except ImportError:
 # PySide2 — ships with Houdini.
 try:
     from PySide2 import QtWidgets, QtCore, QtGui
+
     _HAS_PYSIDE = True
 except ImportError:
     try:
         from PySide6 import QtWidgets, QtCore, QtGui  # type: ignore
+
         _HAS_PYSIDE = True
     except ImportError:
         _HAS_PYSIDE = False
@@ -96,11 +99,13 @@ def get_houdini_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "houdini",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "houdini",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -139,7 +144,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"houdini_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "houdini_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def execute_code_safely(code: str) -> tuple:
@@ -162,7 +171,7 @@ def send_command(command: str) -> tuple:
     response = None
     try:
         response = call_nalana_api(command, scene_ctx)
-    except Exception as api_err:
+    except Exception:
         try:
             response = call_claude_fallback(command, scene_ctx)
         except Exception as claude_err:
@@ -261,7 +270,7 @@ class NalanaPanel(QtWidgets.QDialog):
             self.command_edit.clear()
             self.status_label.setText(f"Done: {command}")
         else:
-            self.status_label.setText(f"Error — see console for details.")
+            self.status_label.setText("Error — see console for details.")
             print(f"[Nalana] {message}")
 
     def _push_history(self, command: str):

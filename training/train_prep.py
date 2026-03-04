@@ -1,4 +1,7 @@
-import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 """
 train_prep.py - Convert raw JSONL pairs into fine-tuning ready datasets.
 
@@ -34,36 +37,36 @@ Usage:
 import argparse
 import json
 import random
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 # ─── Directory layout ─────────────────────────────────────────────────────────
-BASE_DIR      = Path(__file__).parents[1]
+BASE_DIR = Path(__file__).parents[1]
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
-SPATIAL_DIR   = BASE_DIR / "data" / "spatial"
-PHYSICS_DIR   = BASE_DIR / "data" / "physics"
+SPATIAL_DIR = BASE_DIR / "data" / "spatial"
+PHYSICS_DIR = BASE_DIR / "data" / "physics"
 MULTITURN_DIR = BASE_DIR / "data" / "multiturn"
-INTEG_DIR     = BASE_DIR / "data" / "integrations"
-TRAIN_DIR     = BASE_DIR / "data" / "train"
+INTEG_DIR = BASE_DIR / "data" / "integrations"
+TRAIN_DIR = BASE_DIR / "data" / "train"
 
 # Target mix fractions (must sum to ~1.0)
 TARGET_MIX = {
-    "tutorials":    0.35,   # Stream 1
-    "spatial":      0.25,   # Stream 2
-    "multiturn":    0.20,   # Stream 4
-    "physics":      0.15,   # Stream 3
-    "integrations": 0.05,   # Stream 5
+    "tutorials": 0.35,  # Stream 1
+    "spatial": 0.25,  # Stream 2
+    "multiturn": 0.20,  # Stream 4
+    "physics": 0.15,  # Stream 3
+    "integrations": 0.05,  # Stream 5
 }
 
 # Curriculum task order — EXECUTE is simplest, MULTI_STEP is most complex
 CURRICULUM_ORDER = {
-    "EXECUTE":     0,
+    "EXECUTE": 0,
     "MATERIALIZE": 1,
-    "LIGHT":       2,
-    "SIMULATE":    3,
-    "BUILD":       4,
-    "UNDERSTAND":  5,
-    "MULTI_STEP":  6,
+    "LIGHT": 2,
+    "SIMULATE": 3,
+    "BUILD": 4,
+    "UNDERSTAND": 5,
+    "MULTI_STEP": 6,
 }
 
 SYSTEM_MSG = (
@@ -75,6 +78,7 @@ SYSTEM_MSG = (
 
 
 # ─── Stream loaders ───────────────────────────────────────────────────────────
+
 
 def load_stream1_tutorials() -> list[dict]:
     """Stream 1: YouTube tutorial pairs from data/processed/"""
@@ -204,15 +208,16 @@ def load_all_streams() -> dict[str, list[dict]]:
     print(f"  {len(s5):,} pairs")
 
     return {
-        "tutorials":    s1,
-        "spatial":      s2,
-        "physics":      s3,
-        "multiturn":    s4,
+        "tutorials": s1,
+        "spatial": s2,
+        "physics": s3,
+        "multiturn": s4,
         "integrations": s5,
     }
 
 
 # ─── Quality filtering ────────────────────────────────────────────────────────
+
 
 def is_valid_pair(p: dict) -> bool:
     """Minimum validity check — must have inputs and outputs."""
@@ -249,6 +254,7 @@ def apply_quality_weights(pairs: list[dict]) -> list[dict]:
 
 # ─── Curriculum ordering ──────────────────────────────────────────────────────
 
+
 def get_curriculum_key(p: dict) -> tuple:
     """Sort key: (task_type_order, difficulty)"""
     task_type = p.get("task_type", p.get("blender_op", {}).get("op", "EXECUTE"))
@@ -273,7 +279,10 @@ def apply_curriculum_sort(pairs: list[dict]) -> list[dict]:
 
 # ─── Mix management ───────────────────────────────────────────────────────────
 
-def balance_streams(streams: dict[str, list[dict]], total_target: int | None = None) -> list[dict]:
+
+def balance_streams(
+    streams: dict[str, list[dict]], total_target: int | None = None
+) -> list[dict]:
     """
     Combine streams according to TARGET_MIX ratios.
     If total_target is None, uses the sum of all available pairs.
@@ -302,10 +311,14 @@ def balance_streams(streams: dict[str, list[dict]], total_target: int | None = N
             # Upsample by repeating
             repeats = (target_n // len(stream_pairs)) + 1
             pool = (stream_pairs * repeats)[:target_n]
-            print(f"  {stream_name}: {len(stream_pairs):,} available → upsampled to {target_n:,} (×{repeats})")
+            print(
+                f"  {stream_name}: {len(stream_pairs):,} available → upsampled to {target_n:,} (×{repeats})"
+            )
         else:
             pool = random.sample(stream_pairs, target_n)
-            print(f"  {stream_name}: {len(stream_pairs):,} available → sampled {target_n:,} ({target_frac*100:.0f}%)")
+            print(
+                f"  {stream_name}: {len(stream_pairs):,} available → sampled {target_n:,} ({target_frac * 100:.0f}%)"
+            )
 
         combined.extend(pool)
 
@@ -313,6 +326,7 @@ def balance_streams(streams: dict[str, list[dict]], total_target: int | None = N
 
 
 # ─── Format conversion ────────────────────────────────────────────────────────
+
 
 def make_user_message(pair: dict) -> str:
     """Build user turn from any stream's pair format."""
@@ -351,7 +365,9 @@ def make_assistant_message(pair: dict) -> str:
     # Cross-software implementations dict
     if "implementations" in pair and isinstance(pair["implementations"], dict):
         impl_lines = "\n".join(
-            f"  {sw}: {c}" for sw, c in pair["implementations"].items() if sw != "blender"
+            f"  {sw}: {c}"
+            for sw, c in pair["implementations"].items()
+            if sw != "blender"
         )
         if impl_lines:
             parts.append(f"Cross-software equivalents:\n{impl_lines}")
@@ -375,8 +391,8 @@ def to_sharegpt_standard(pair: dict) -> dict:
     """Convert a standard (non-multi-turn) pair to ShareGPT format."""
     return {
         "conversations": [
-            {"from": "system",    "value": SYSTEM_MSG},
-            {"from": "human",     "value": make_user_message(pair)},
+            {"from": "system", "value": SYSTEM_MSG},
+            {"from": "human", "value": make_user_message(pair)},
             {"from": "assistant", "value": make_assistant_message(pair)},
         ]
     }
@@ -400,7 +416,7 @@ def to_alpaca(pair: dict) -> dict:
         # Extract first human/assistant exchange
         convs = pair["conversations"]
         human = next((c["value"] for c in convs if c["from"] == "human"), "")
-        asst  = next((c["value"] for c in convs if c["from"] == "assistant"), "")
+        asst = next((c["value"] for c in convs if c["from"] == "assistant"), "")
         return {"instruction": SYSTEM_MSG, "input": human, "output": asst}
     return {
         "instruction": SYSTEM_MSG,
@@ -419,13 +435,14 @@ def write_jsonl(path: Path, records: list[dict]):
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
+
 def print_stats(streams: dict[str, list[dict]], combined: list[dict]):
-    print(f"\n{'═'*60}")
-    print(f"  DATASET STATISTICS")
-    print(f"{'═'*60}")
+    print(f"\n{'═' * 60}")
+    print("  DATASET STATISTICS")
+    print(f"{'═' * 60}")
 
     total = sum(len(v) for v in streams.values())
-    print(f"\n  Raw stream sizes:")
+    print("\n  Raw stream sizes:")
     for name, pairs in streams.items():
         frac = len(pairs) / max(total, 1) * 100
         print(f"    {name:<15} {len(pairs):>8,}  ({frac:.1f}%)")
@@ -444,20 +461,20 @@ def print_stats(streams: dict[str, list[dict]], combined: list[dict]):
         task_types[str(tt).upper()] += 1
 
     if ops:
-        print(f"\n  Top 15 Blender ops:")
+        print("\n  Top 15 Blender ops:")
         for op, count in ops.most_common(15):
             bar = "█" * min(count // max(len(combined) // 200, 1), 30)
             print(f"    {op:<45} {count:>5}  {bar}")
 
     if task_types:
-        print(f"\n  Task type distribution:")
+        print("\n  Task type distribution:")
         for tt, count in task_types.most_common():
             frac = count / len(combined) * 100
             print(f"    {tt:<20} {count:>6,}  ({frac:.1f}%)")
 
     # Token estimate (rough: 1 token ≈ 4 chars)
     total_chars = 0
-    for p in combined[:min(1000, len(combined))]:
+    for p in combined[: min(1000, len(combined))]:
         try:
             total_chars += len(make_user_message(p)) + len(make_assistant_message(p))
         except Exception:
@@ -468,20 +485,33 @@ def print_stats(streams: dict[str, list[dict]], combined: list[dict]):
         print(f"\n  Est. total tokens: ~{est_tokens:,}")
         print(f"  Avg tokens/pair:   ~{int(avg_chars / 4)}")
 
-    print(f"{'═'*60}\n")
+    print(f"{'═' * 60}\n")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Prepare training dataset from all 5 data streams")
-    parser.add_argument("--val-ratio", type=float, default=0.05, help="Validation split ratio")
+    parser = argparse.ArgumentParser(
+        description="Prepare training dataset from all 5 data streams"
+    )
+    parser.add_argument(
+        "--val-ratio", type=float, default=0.05, help="Validation split ratio"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--stats-only", action="store_true")
-    parser.add_argument("--no-curriculum", action="store_true", help="Disable curriculum ordering")
-    parser.add_argument("--no-weights", action="store_true", help="Disable quality tier weighting")
-    parser.add_argument("--total-pairs", type=int, default=None,
-                        help="Target total pairs (default: use all available)")
+    parser.add_argument(
+        "--no-curriculum", action="store_true", help="Disable curriculum ordering"
+    )
+    parser.add_argument(
+        "--no-weights", action="store_true", help="Disable quality tier weighting"
+    )
+    parser.add_argument(
+        "--total-pairs",
+        type=int,
+        default=None,
+        help="Target total pairs (default: use all available)",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -491,12 +521,16 @@ def main():
     total_raw = sum(len(v) for v in streams.values())
 
     if total_raw == 0:
-        print("No training data found across any stream. Run the data collection scripts first.")
+        print(
+            "No training data found across any stream. Run the data collection scripts first."
+        )
         print("  Stream 1: python synthesize_bulk.py")
         print("  Stream 2: python annotate_forms.py")
         print("  Stream 3: python integrations/collect_design_physics.py")
         print("  Stream 4: python multi_turn.py")
-        print("  Stream 5: python integrations/collect_design_physics.py --integrations")
+        print(
+            "  Stream 5: python integrations/collect_design_physics.py --integrations"
+        )
         return
 
     # Filter invalid pairs per stream
@@ -513,7 +547,9 @@ def main():
         for name, pairs in filtered_streams.items():
             weighted = apply_quality_weights(pairs)
             if len(weighted) != len(pairs):
-                print(f"  [weights] {name}: {len(pairs):,} → {len(weighted):,} after quality weighting")
+                print(
+                    f"  [weights] {name}: {len(pairs):,} → {len(weighted):,} after quality weighting"
+                )
             weighted_streams[name] = weighted
     else:
         weighted_streams = filtered_streams
@@ -536,9 +572,9 @@ def main():
     # For curriculum: take val from a random sample of the full set, not just the end
     indices = list(range(len(combined)))
     random.shuffle(indices)
-    val_indices  = set(indices[:val_n])
-    train_pairs  = [combined[i] for i in range(len(combined)) if i not in val_indices]
-    val_pairs    = [combined[i] for i in range(len(combined)) if i in val_indices]
+    val_indices = set(indices[:val_n])
+    train_pairs = [combined[i] for i in range(len(combined)) if i not in val_indices]
+    val_pairs = [combined[i] for i in range(len(combined)) if i in val_indices]
 
     # Re-apply curriculum sort to training set (val can be random)
     if not args.no_curriculum:
@@ -548,17 +584,19 @@ def main():
     print(f"Val:   {len(val_pairs):,} pairs\n")
 
     # Write ShareGPT format
-    write_jsonl(TRAIN_DIR / "sharegpt_train.jsonl", [to_sharegpt(p) for p in train_pairs])
-    write_jsonl(TRAIN_DIR / "sharegpt_val.jsonl",   [to_sharegpt(p) for p in val_pairs])
+    write_jsonl(
+        TRAIN_DIR / "sharegpt_train.jsonl", [to_sharegpt(p) for p in train_pairs]
+    )
+    write_jsonl(TRAIN_DIR / "sharegpt_val.jsonl", [to_sharegpt(p) for p in val_pairs])
 
     # Write Alpaca format
     write_jsonl(TRAIN_DIR / "alpaca_train.jsonl", [to_alpaca(p) for p in train_pairs])
-    write_jsonl(TRAIN_DIR / "alpaca_val.jsonl",   [to_alpaca(p) for p in val_pairs])
+    write_jsonl(TRAIN_DIR / "alpaca_val.jsonl", [to_alpaca(p) for p in val_pairs])
 
     print(f"\nAll files written to {TRAIN_DIR}/")
     print("  sharegpt_train.jsonl  <- use with TRL SFTTrainer / axolotl")
     print("  alpaca_train.jsonl    <- use with simpler trainers")
-    print(f"\nNext step: deepspeed --num_gpus=18 train.py --deepspeed ds_config.json")
+    print("\nNext step: deepspeed --num_gpus=18 train.py --deepspeed ds_config.json")
 
 
 if __name__ == "__main__":

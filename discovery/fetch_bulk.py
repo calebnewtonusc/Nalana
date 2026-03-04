@@ -27,14 +27,15 @@ from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFoun
 
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
-DATA_DIR   = Path(__file__).parents[1] / "data"
-RAW_DIR    = DATA_DIR / "raw"
-IDS_FILE   = DATA_DIR / "video_ids.txt"
-SKIP_FILE  = DATA_DIR / "skip.txt"   # IDs with no English transcript
+DATA_DIR = Path(__file__).parents[1] / "data"
+RAW_DIR = DATA_DIR / "raw"
+IDS_FILE = DATA_DIR / "video_ids.txt"
+SKIP_FILE = DATA_DIR / "skip.txt"  # IDs with no English transcript
 
 _print_lock = Lock()
 
@@ -50,6 +51,7 @@ def load_video_ids(limit: int | None = None) -> list[str]:
         urls_file = Path(__file__).parent / "urls.txt"
         if urls_file.exists():
             import re
+
             content = urls_file.read_text()
             ids = re.findall(r"(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})", content)
             return ids[:limit] if limit else ids
@@ -82,22 +84,26 @@ def merge_segments(segments: list[dict], window_seconds: float = 30.0) -> list[d
     for seg in segments:
         seg_end = seg["start"] + seg["duration"]
         if seg["start"] - chunk_start >= window_seconds and current_text:
-            chunks.append({
-                "text": " ".join(current_text).strip(),
-                "start": round(chunk_start, 2),
-                "end": round(chunk_end, 2),
-            })
+            chunks.append(
+                {
+                    "text": " ".join(current_text).strip(),
+                    "start": round(chunk_start, 2),
+                    "end": round(chunk_end, 2),
+                }
+            )
             current_text = []
             chunk_start = seg["start"]
         current_text.append(seg["text"])
         chunk_end = seg_end
 
     if current_text:
-        chunks.append({
-            "text": " ".join(current_text).strip(),
-            "start": round(chunk_start, 2),
-            "end": round(chunk_end, 2),
-        })
+        chunks.append(
+            {
+                "text": " ".join(current_text).strip(),
+                "start": round(chunk_start, 2),
+                "end": round(chunk_end, 2),
+            }
+        )
     return chunks
 
 
@@ -110,7 +116,9 @@ def fetch_one(video_id: str) -> tuple[str, str]:
     try:
         api = YouTubeTranscriptApi()
         fetched = api.fetch(video_id, languages=["en", "en-US"])
-        raw = [{"text": s.text, "start": s.start, "duration": s.duration} for s in fetched]
+        raw = [
+            {"text": s.text, "start": s.start, "duration": s.duration} for s in fetched
+        ]
         chunks = merge_segments(raw)
 
         payload = {
@@ -132,23 +140,31 @@ def fetch_one(video_id: str) -> tuple[str, str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Bulk parallel transcript fetching")
-    parser.add_argument("--workers", type=int, default=20, help="Parallel workers (default: 20)")
+    parser.add_argument(
+        "--workers", type=int, default=20, help="Parallel workers (default: 20)"
+    )
     parser.add_argument("--limit", type=int, help="Max IDs to process (for test runs)")
-    parser.add_argument("--force", action="store_true", help="Re-fetch already cached transcripts")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-fetch already cached transcripts"
+    )
     args = parser.parse_args()
 
     all_ids = load_video_ids(args.limit)
     if not all_ids:
-        print(f"No video IDs found. Run discover_v2.py first, or add URLs to urls.txt.")
+        print("No video IDs found. Run discover_v2.py first, or add URLs to urls.txt.")
         return
 
     skip_ids = load_skip_ids()
-    already_fetched = set(p.stem for p in RAW_DIR.glob("*.json")) if RAW_DIR.exists() else set()
+    already_fetched = (
+        set(p.stem for p in RAW_DIR.glob("*.json")) if RAW_DIR.exists() else set()
+    )
 
     if args.force:
         pending = [vid for vid in all_ids if vid not in skip_ids]
     else:
-        pending = [vid for vid in all_ids if vid not in skip_ids and vid not in already_fetched]
+        pending = [
+            vid for vid in all_ids if vid not in skip_ids and vid not in already_fetched
+        ]
 
     print(f"Video IDs total:    {len(all_ids)}")
     print(f"Already fetched:    {len(already_fetched)}")
@@ -187,8 +203,12 @@ def main():
             if pbar:
                 elapsed = time.time() - start_time
                 rate = (counters["saved"] + counters["skip"]) / max(elapsed, 1)
-                pbar.set_postfix(saved=counters["saved"], skip=counters["skip"],
-                                  err=counters["error"], rate=f"{rate:.1f}/s")
+                pbar.set_postfix(
+                    saved=counters["saved"],
+                    skip=counters["skip"],
+                    err=counters["error"],
+                    rate=f"{rate:.1f}/s",
+                )
                 pbar.update(1)
 
     if pbar:
@@ -197,13 +217,15 @@ def main():
     elapsed = time.time() - start_time
     total_raw = len(list(RAW_DIR.glob("*.json"))) if RAW_DIR.exists() else 0
 
-    print(f"\n{'─'*40}")
+    print(f"\n{'─' * 40}")
     print(f"Saved:    {counters['saved']}")
     print(f"Skipped:  {counters['skip']}  (no English transcript)")
     print(f"Errors:   {counters['error']}")
-    print(f"Time:     {elapsed:.0f}s  ({counters['saved']/max(elapsed,1):.1f} saved/s)")
+    print(
+        f"Time:     {elapsed:.0f}s  ({counters['saved'] / max(elapsed, 1):.1f} saved/s)"
+    )
     print(f"Total raw transcripts: {total_raw}")
-    print(f"\nNext step: python synthesize_bulk.py")
+    print("\nNext step: python synthesize_bulk.py")
 
 
 if __name__ == "__main__":

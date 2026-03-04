@@ -38,7 +38,7 @@ DEFAULT_QUERIES = [
 ]
 
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
-YOUTUBE_VIDEO_URL  = "https://www.googleapis.com/youtube/v3/videos"
+YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 
 def search_videos(api_key: str, query: str, max_results: int = 10) -> list[dict]:
@@ -48,7 +48,7 @@ def search_videos(api_key: str, query: str, max_results: int = 10) -> list[dict]
         "q": query,
         "type": "video",
         "maxResults": min(max_results, 50),
-        "videoDuration": "medium",   # 4-20 min — denser tutorials
+        "videoDuration": "medium",  # 4-20 min — denser tutorials
         "relevanceLanguage": "en",
         "key": api_key,
     }
@@ -62,17 +62,27 @@ def search_videos(api_key: str, query: str, max_results: int = 10) -> list[dict]
         if not vid_id:
             continue
         snippet = item.get("snippet", {})
-        results.append({
-            "video_id": vid_id,
-            "title": snippet.get("title", ""),
-            "description": snippet.get("description", "")[:200],
-        })
+        results.append(
+            {
+                "video_id": vid_id,
+                "title": snippet.get("title", ""),
+                "description": snippet.get("description", "")[:200],
+            }
+        )
     return results
 
 
 def filter_blender_tutorials(videos: list[dict]) -> list[dict]:
     """Basic heuristic filter — keep videos that look like real Blender tutorials."""
-    keywords = ["blender", "tutorial", "model", "mesh", "sculpt", "geometry", "modifier"]
+    keywords = [
+        "blender",
+        "tutorial",
+        "model",
+        "mesh",
+        "sculpt",
+        "geometry",
+        "modifier",
+    ]
     skip_terms = ["reaction", "meme", "speedrun", "timelapse", "no commentary"]
 
     filtered = []
@@ -111,11 +121,21 @@ def append_to_urls_file(videos: list[dict], query: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Discover Blender tutorial URLs via YouTube API")
-    parser.add_argument("--api-key", default=os.environ.get("YOUTUBE_API_KEY", ""), help="YouTube Data API v3 key")
+    parser = argparse.ArgumentParser(
+        description="Discover Blender tutorial URLs via YouTube API"
+    )
+    parser.add_argument(
+        "--api-key",
+        default=os.environ.get("YOUTUBE_API_KEY", ""),
+        help="YouTube Data API v3 key",
+    )
     parser.add_argument("--query", help="Single search query (overrides default list)")
-    parser.add_argument("--max", type=int, default=10, help="Max results per query (default: 10)")
-    parser.add_argument("--dry-run", action="store_true", help="Print results without saving")
+    parser.add_argument(
+        "--max", type=int, default=10, help="Max results per query (default: 10)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print results without saving"
+    )
     args = parser.parse_args()
 
     if not args.api_key:
@@ -127,7 +147,7 @@ def main():
     total_added = 0
 
     for query in queries:
-        print(f"\nSearching: \"{query}\"")
+        print(f'\nSearching: "{query}"')
         try:
             results = search_videos(args.api_key, query, args.max)
             filtered = filter_blender_tutorials(results)
@@ -146,7 +166,7 @@ def main():
 
     if not args.dry_run:
         print(f"\nTotal new URLs added: {total_added}")
-        print(f"Run `python pipeline.py` to fetch and process them.")
+        print("Run `python pipeline.py` to fetch and process them.")
 
 
 if __name__ == "__main__":

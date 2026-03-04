@@ -11,7 +11,6 @@ Installation:
   Rhino 8 (CPython): drop this file in the Rhino scripts folder and it auto-registers.
 """
 
-import sys
 import json
 import traceback
 import urllib.request
@@ -23,6 +22,7 @@ try:
     import Rhino
     import Rhino.Geometry as rg
     import scriptcontext
+
     _IN_RHINO = True
 except ImportError:
     _IN_RHINO = False
@@ -32,6 +32,7 @@ try:
     import System
     import System.Windows.Forms as WinForms
     import System.Drawing as Drawing
+
     _HAS_WINFORMS = True
 except ImportError:
     _HAS_WINFORMS = False
@@ -103,11 +104,13 @@ def get_rhino_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "rhino",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "rhino",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -146,7 +149,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"rhino_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "rhino_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def execute_code_safely(code: str) -> tuple:
@@ -156,7 +163,9 @@ def execute_code_safely(code: str) -> tuple:
     """
     exec_globals: dict = {"__builtins__": __builtins__}
     if _IN_RHINO:
-        exec_globals.update({"rs": rs, "Rhino": Rhino, "rg": rg, "scriptcontext": scriptcontext})
+        exec_globals.update(
+            {"rs": rs, "Rhino": Rhino, "rg": rg, "scriptcontext": scriptcontext}
+        )
     try:
         exec(code, exec_globals)  # noqa: S102
         return True, ""
@@ -171,7 +180,7 @@ def send_command(command: str) -> tuple:
     response = None
     try:
         response = call_nalana_api(command, scene_ctx)
-    except Exception as api_err:
+    except Exception:
         try:
             response = call_claude_fallback(command, scene_ctx)
         except Exception as claude_err:
@@ -393,7 +402,6 @@ def RunCommand():
 
 if _IN_RHINO:
     try:
-        import rhinoscript.userinterface  # type: ignore
 
         class NalanaCommand(Rhino.Commands.Command):
             """Rhino command class — registers 'Nalana' in the command bar."""

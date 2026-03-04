@@ -8,7 +8,6 @@ Installation:
 The plugin registers a "Nalana" menu in Maya's main menu bar.
 """
 
-import sys
 import json
 import traceback
 import urllib.request
@@ -19,6 +18,7 @@ try:
     import maya.cmds as cmds
     import maya.mel as mel
     import maya.api.OpenMaya as om
+
     _IN_MAYA = True
 except ImportError:
     _IN_MAYA = False
@@ -27,6 +27,7 @@ except ImportError:
 try:
     from PySide2 import QtWidgets, QtCore, QtGui
     from shiboken2 import wrapInstance
+
     _HAS_PYSIDE = True
 except ImportError:
     _HAS_PYSIDE = False
@@ -82,7 +83,8 @@ def get_maya_context() -> dict:
         "object_count": len(all_objects),
         "mesh_count": len(all_meshes),
         "frame_current": current_frame,
-        "scene_name": cmds.file(query=True, sceneName=True, shortName=True) or "untitled",
+        "scene_name": cmds.file(query=True, sceneName=True, shortName=True)
+        or "untitled",
     }
 
 
@@ -94,11 +96,13 @@ def get_maya_context() -> dict:
 def call_nalana_api(voice_command: str, scene_context: dict) -> dict:
     """POST to the Nalana API and return the parsed JSON response."""
     endpoint = _CONFIG["api_url"].rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": "maya",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": "maya",
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -117,7 +121,9 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         import anthropic  # type: ignore
     except ImportError:
-        raise RuntimeError("'anthropic' package not available. Run: pip install anthropic")
+        raise RuntimeError(
+            "'anthropic' package not available. Run: pip install anthropic"
+        )
 
     client = anthropic.Anthropic(api_key=_CONFIG["anthropic_key"])
     system_prompt = (
@@ -137,7 +143,11 @@ def call_claude_fallback(voice_command: str, scene_context: dict) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"maya_python": raw, "reasoning": "Claude fallback", "task_type": "unknown"}
+        return {
+            "maya_python": raw,
+            "reasoning": "Claude fallback",
+            "task_type": "unknown",
+        }
 
 
 def execute_code_safely(code: str) -> tuple:
@@ -163,7 +173,7 @@ def get_maya_main_window():
         return None
     try:
         import maya.OpenMayaUI as omui
-        import ctypes
+
         ptr = omui.MQtUtil.mainWindow()
         if ptr is not None:
             return wrapInstance(int(ptr), QtWidgets.QWidget)
@@ -282,7 +292,9 @@ class NalanaMayaWindow(QtWidgets.QDialog):
             self.command_edit.clear()
             self.status_label.setText(f"Executed: {command}")
         else:
-            self.status_label.setText("Execution failed — see Script Editor for details.")
+            self.status_label.setText(
+                "Execution failed — see Script Editor for details."
+            )
             if _IN_MAYA:
                 cmds.warning(f"[Nalana] Execution error:\n{error_msg}")
             print(f"[Nalana] Execution error:\n{error_msg}")
@@ -340,11 +352,14 @@ def _create_menu():
     cmds.menu(_menu_name, label="Nalana", parent=maya_window, tearOff=True)
     cmds.menuItem(label="Open Nalana Panel", command=lambda *_: show_nalana_window())
     cmds.menuItem(divider=True)
-    cmds.menuItem(label="About Nalana", command=lambda *_: cmds.confirmDialog(
-        title="About Nalana",
-        message=f"Nalana Maya Plugin v{PLUGIN_VERSION}\nAI-powered 3D operations.",
-        button=["OK"],
-    ))
+    cmds.menuItem(
+        label="About Nalana",
+        command=lambda *_: cmds.confirmDialog(
+            title="About Nalana",
+            message=f"Nalana Maya Plugin v{PLUGIN_VERSION}\nAI-powered 3D operations.",
+            button=["OK"],
+        ),
+    )
 
 
 def _remove_menu():
@@ -360,7 +375,7 @@ def _remove_menu():
 
 def initializePlugin(plugin):
     """Called by Maya when the plugin is loaded."""
-    fn_plugin = om.MFnPlugin(plugin, PLUGIN_VENDOR, PLUGIN_VERSION)
+    om.MFnPlugin(plugin, PLUGIN_VENDOR, PLUGIN_VERSION)
     try:
         _create_menu()
         print(f"[Nalana] Plugin v{PLUGIN_VERSION} loaded successfully.")
@@ -370,7 +385,7 @@ def initializePlugin(plugin):
 
 def uninitializePlugin(plugin):
     """Called by Maya when the plugin is unloaded."""
-    fn_plugin = om.MFnPlugin(plugin)
+    om.MFnPlugin(plugin)
     try:
         _remove_menu()
         global _nalana_window_ref

@@ -77,9 +77,7 @@ def get_scene_context() -> dict:
     # Per-object details
     objects_info = []
     for obj in scene.objects:
-        mat_names = [
-            slot.material.name for slot in obj.material_slots if slot.material
-        ]
+        mat_names = [slot.material.name for slot in obj.material_slots if slot.material]
         mesh_verts = mesh_faces = None
         if obj.type == "MESH" and obj.data:
             mesh_verts = len(obj.data.vertices)
@@ -87,39 +85,46 @@ def get_scene_context() -> dict:
 
         # An object has an "unapplied transform" if scale or rotation is non-identity
         import math
+
         sx, sy, sz = obj.scale
         rx, ry, rz = obj.rotation_euler
         has_unapplied = (
-            abs(sx - 1.0) > 1e-4 or abs(sy - 1.0) > 1e-4 or abs(sz - 1.0) > 1e-4
-            or abs(rx) > 1e-4 or abs(ry) > 1e-4 or abs(rz) > 1e-4
+            abs(sx - 1.0) > 1e-4
+            or abs(sy - 1.0) > 1e-4
+            or abs(sz - 1.0) > 1e-4
+            or abs(rx) > 1e-4
+            or abs(ry) > 1e-4
+            or abs(rz) > 1e-4
         )
 
-        objects_info.append({
-            "name":                   obj.name,
-            "type":                   obj.type,
-            "location":               [round(v, 4) for v in obj.location],
-            "rotation":               [round(v, 4) for v in obj.rotation_euler],
-            "scale":                  [round(v, 4) for v in obj.scale],
-            "dimensions":             [round(v, 4) for v in obj.dimensions],
-            "material_count":         len(mat_names),
-            "materials":              mat_names,
-            "vertex_count":           mesh_verts,
-            "face_count":             mesh_faces,
-            "has_unapplied_transform": has_unapplied,
-            "visible":                obj.visible_get(),
-        })
+        objects_info.append(
+            {
+                "name": obj.name,
+                "type": obj.type,
+                "location": [round(v, 4) for v in obj.location],
+                "rotation": [round(v, 4) for v in obj.rotation_euler],
+                "scale": [round(v, 4) for v in obj.scale],
+                "dimensions": [round(v, 4) for v in obj.dimensions],
+                "material_count": len(mat_names),
+                "materials": mat_names,
+                "vertex_count": mesh_verts,
+                "face_count": mesh_faces,
+                "has_unapplied_transform": has_unapplied,
+                "visible": obj.visible_get(),
+            }
+        )
 
     return {
-        "schema_version":  "1",
-        "software":        "blender",
+        "schema_version": "1",
+        "software": "blender",
         "software_version": ".".join(str(v) for v in bpy.app.version),
-        "active_object":   active.name if active else None,
+        "active_object": active.name if active else None,
         "selected_objects": selected_names,
-        "mode":            bpy.context.mode,
-        "frame_current":   scene.frame_current,
-        "render_engine":   scene.render.engine,
+        "mode": bpy.context.mode,
+        "frame_current": scene.frame_current,
+        "render_engine": scene.render.engine,
         "units": {
-            "system":       scene.unit_settings.system,
+            "system": scene.unit_settings.system,
             "scale_length": scene.unit_settings.scale_length,
         },
         "objects": objects_info,
@@ -161,17 +166,21 @@ def push_history(scene, command: str):
     scene[NALANA_HISTORY_PROP] = json.dumps(history)
 
 
-def call_nalana_api(api_url: str, api_key: str, voice_command: str, scene_context: dict, software: str) -> dict:
+def call_nalana_api(
+    api_url: str, api_key: str, voice_command: str, scene_context: dict, software: str
+) -> dict:
     """
     POST to the Nalana API and return the parsed JSON response.
     Raises urllib.error.URLError or ValueError on failure.
     """
     endpoint = api_url.rstrip("/") + "/v1/command"
-    payload = json.dumps({
-        "voice_command": voice_command,
-        "scene_context": scene_context,
-        "software": software,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "voice_command": voice_command,
+            "scene_context": scene_context,
+            "software": software,
+        }
+    ).encode("utf-8")
 
     headers = {
         "Content-Type": "application/json",
@@ -185,7 +194,9 @@ def call_nalana_api(api_url: str, api_key: str, voice_command: str, scene_contex
         return json.loads(resp.read().decode("utf-8"))
 
 
-def call_claude_fallback(anthropic_key: str, voice_command: str, scene_context: dict) -> dict:
+def call_claude_fallback(
+    anthropic_key: str, voice_command: str, scene_context: dict
+) -> dict:
     """
     Fallback: send the command directly to Claude (claude-sonnet-4-6) when the
     Nalana backend is not reachable. Returns a dict with a 'blender_python' key.
@@ -207,10 +218,7 @@ def call_claude_fallback(anthropic_key: str, voice_command: str, scene_context: 
         "whose value is executable bpy Python code that performs the requested operation. "
         "Do not include markdown fences. Scene context is provided as a JSON object."
     )
-    user_msg = (
-        f"Scene context: {json.dumps(scene_context)}\n\n"
-        f"Command: {voice_command}"
-    )
+    user_msg = f"Scene context: {json.dumps(scene_context)}\n\nCommand: {voice_command}"
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
@@ -222,7 +230,11 @@ def call_claude_fallback(anthropic_key: str, voice_command: str, scene_context: 
         return json.loads(raw)
     except json.JSONDecodeError:
         # Wrap plain code in expected structure
-        return {"blender_python": raw, "reasoning": "Claude fallback (raw code)", "task_type": "unknown"}
+        return {
+            "blender_python": raw,
+            "reasoning": "Claude fallback (raw code)",
+            "task_type": "unknown",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +334,10 @@ class NALANA_OT_Execute(Operator):
             )
             self.report({"INFO"}, "Nalana: received response from server.")
         except Exception as api_err:
-            self.report({"WARNING"}, f"Nalana API unreachable ({api_err}), trying Claude fallback…")
+            self.report(
+                {"WARNING"},
+                f"Nalana API unreachable ({api_err}), trying Claude fallback…",
+            )
             try:
                 response = call_claude_fallback(
                     prefs.anthropic_key,
@@ -330,7 +345,10 @@ class NALANA_OT_Execute(Operator):
                     scene_ctx,
                 )
             except Exception as claude_err:
-                self.report({"ERROR"}, f"Both Nalana API and Claude fallback failed: {claude_err}")
+                self.report(
+                    {"ERROR"},
+                    f"Both Nalana API and Claude fallback failed: {claude_err}",
+                )
                 return {"CANCELLED"}
 
         # Execute the code block returned by the API.
@@ -424,12 +442,16 @@ class NALANA_OT_Record(Operator):
                 pass
 
         if not recorded:
-            self.report({"ERROR"}, "Neither sounddevice nor pyaudio is available. Cannot record audio.")
+            self.report(
+                {"ERROR"},
+                "Neither sounddevice nor pyaudio is available. Cannot record audio.",
+            )
             return {"CANCELLED"}
 
         # Transcribe with whisper.
         try:
             import whisper as whisper_lib  # type: ignore
+
             model = whisper_lib.load_model("base")
             result = model.transcribe(wav_path)
             transcript = result.get("text", "").strip()
@@ -437,7 +459,14 @@ class NALANA_OT_Record(Operator):
             # Fall back to whisper CLI.
             try:
                 result = subprocess.run(
-                    [prefs.whisper_path, wav_path, "--output_format", "txt", "--output_dir", tempfile.gettempdir()],
+                    [
+                        prefs.whisper_path,
+                        wav_path,
+                        "--output_format",
+                        "txt",
+                        "--output_dir",
+                        tempfile.gettempdir(),
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=60,

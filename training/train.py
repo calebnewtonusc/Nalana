@@ -1,4 +1,7 @@
-import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 """
 train.py - Fine-tune Qwen2.5-Coder-7B-Instruct on the Nalana Blender dataset.
 
@@ -72,7 +75,9 @@ def format_sharegpt_to_text(example: dict, tokenizer) -> dict:
     if system_msgs:
         messages = [{"role": "system", "content": system_msgs[0]["value"]}] + messages
 
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+    text = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=False
+    )
     return {"text": text}
 
 
@@ -82,17 +87,26 @@ class PrintMetricsCallback(TrainerCallback):
             step = state.global_step
             loss = logs.get("loss", "—")
             lr = logs.get("learning_rate", "—")
-            print(f"  step {step:>6} | loss {loss:.4f} | lr {lr:.2e}" if isinstance(loss, float) else f"  step {step}")
+            print(
+                f"  step {step:>6} | loss {loss:.4f} | lr {lr:.2e}"
+                if isinstance(loss, float)
+                else f"  step {step}"
+            )
 
 
 def build_lora_config(lora_rank: int = 64) -> LoraConfig:
     return LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         r=lora_rank,
-        lora_alpha=lora_rank * 2,   # scaling = alpha/r = 2x (tied to rank)
-        target_modules=[    # Qwen2 attention + MLP projections
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+        lora_alpha=lora_rank * 2,  # scaling = alpha/r = 2x (tied to rank)
+        target_modules=[  # Qwen2 attention + MLP projections
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ],
         lora_dropout=0.05,
         bias="none",
@@ -100,24 +114,34 @@ def build_lora_config(lora_rank: int = 64) -> LoraConfig:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tune Nalana model on Blender dataset")
+    parser = argparse.ArgumentParser(
+        description="Fine-tune Nalana model on Blender dataset"
+    )
     parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-7B-Instruct")
     parser.add_argument("--data-dir", default="data/train")
     parser.add_argument("--output-dir", default="checkpoints/nalana-v1")
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--batch-size", type=int, default=4, help="Per-device batch size")
-    parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumulation steps")
+    parser.add_argument(
+        "--batch-size", type=int, default=4, help="Per-device batch size"
+    )
+    parser.add_argument(
+        "--grad-accum", type=int, default=4, help="Gradient accumulation steps"
+    )
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--max-length", type=int, default=2048)
     parser.add_argument("--lora-r", type=int, default=64)
     parser.add_argument("--deepspeed", type=str, help="Path to DeepSpeed config JSON")
-    parser.add_argument("--flash-attn", action="store_true", default=False,
-                        help="Use Flash Attention 2 (requires flash-attn package)")
+    parser.add_argument(
+        "--flash-attn",
+        action="store_true",
+        default=False,
+        help="Use Flash Attention 2 (requires flash-attn package)",
+    )
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
     train_file = data_dir / "sharegpt_train.jsonl"
-    val_file   = data_dir / "sharegpt_val.jsonl"
+    val_file = data_dir / "sharegpt_val.jsonl"
 
     if not train_file.exists():
         print(f"Training data not found at {train_file}. Run train_prep.py first.")
@@ -135,7 +159,9 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    model = AutoModelForCausalLM.from_pretrained(args.model, trust_remote_code=True, **model_kwargs)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model, trust_remote_code=True, **model_kwargs
+    )
     model.enable_input_require_grads()
 
     # Apply LoRA
@@ -146,7 +172,7 @@ def main():
     # Load datasets
     print("Loading datasets...")
     train_ds = load_sharegpt_dataset(str(train_file))
-    val_ds   = load_sharegpt_dataset(str(val_file)) if val_file.exists() else None
+    val_ds = load_sharegpt_dataset(str(val_file)) if val_file.exists() else None
 
     # Format to text using chat template
     train_ds = train_ds.map(lambda ex: format_sharegpt_to_text(ex, tokenizer))
@@ -160,7 +186,9 @@ def main():
     effective_batch = args.batch_size * args.grad_accum * n_gpus
     steps_per_epoch = math.ceil(len(train_ds) / effective_batch)
     total_steps = steps_per_epoch * args.epochs
-    print(f"GPUs: {n_gpus} | Effective batch: {effective_batch} | Steps: {total_steps:,}")
+    print(
+        f"GPUs: {n_gpus} | Effective batch: {effective_batch} | Steps: {total_steps:,}"
+    )
 
     training_args = SFTConfig(
         output_dir=args.output_dir,
